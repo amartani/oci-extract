@@ -14,12 +14,14 @@ import (
 // Extractor handles file extraction from eStargz layers
 type Extractor struct {
 	reader io.ReaderAt
+	size   int64
 }
 
 // NewExtractor creates a new eStargz extractor
-func NewExtractor(reader io.ReaderAt) *Extractor {
+func NewExtractor(reader io.ReaderAt, size int64) *Extractor {
 	return &Extractor{
 		reader: reader,
+		size:   size,
 	}
 }
 
@@ -48,24 +50,26 @@ func IsEStargz(layer v1.Layer) (bool, error) {
 
 // ExtractFile extracts a specific file from an eStargz layer
 func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPath string) error {
+	// Convert ReaderAt to SectionReader
+	sr := io.NewSectionReader(e.reader, 0, e.size)
+
 	// Open the eStargz reader
-	r, err := estargz.Open(e.reader)
+	r, err := estargz.Open(sr)
 	if err != nil {
 		return fmt.Errorf("failed to open estargz: %w", err)
 	}
 
 	// Lookup the file in the TOC
-	_, err = r.Lookup(targetPath)
-	if err != nil {
-		return fmt.Errorf("file %s not found in layer: %w", targetPath, err)
+	_, ok := r.Lookup(targetPath)
+	if !ok {
+		return fmt.Errorf("file %s not found in layer TOC", targetPath)
 	}
 
 	// Open the file from the eStargz layer
-	sr, err := r.OpenFile(targetPath)
+	fileReader, err := r.OpenFile(targetPath)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", targetPath, err)
 	}
-	defer sr.Close()
 
 	// Create output directory if needed
 	outputDir := filepath.Dir(outputPath)
@@ -81,7 +85,7 @@ func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPa
 	defer outFile.Close()
 
 	// Copy the file contents
-	_, err = io.Copy(outFile, sr)
+	_, err = io.Copy(outFile, fileReader)
 	if err != nil {
 		return fmt.Errorf("failed to copy file contents: %w", err)
 	}
@@ -91,8 +95,11 @@ func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPa
 
 // ListFiles lists all files in an eStargz layer
 func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
+	// Convert ReaderAt to SectionReader
+	sr := io.NewSectionReader(e.reader, 0, e.size)
+
 	// Open the eStargz reader
-	r, err := estargz.Open(e.reader)
+	_, err := estargz.Open(sr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open estargz: %w", err)
 	}
@@ -108,7 +115,7 @@ func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
 }
 
 // ExtractFileFromLayer is a convenience method that extracts from a layer directly
-func ExtractFileFromLayer(ctx context.Context, layer v1.Layer, reader io.ReaderAt, targetPath string, outputPath string) error {
-	extractor := NewExtractor(reader)
+func ExtractFileFromLayer(ctx context.Context, layer v1.Layer, reader io.ReaderAt, size int64, targetPath string, outputPath string) error {
+	extractor := NewExtractor(reader, size)
 	return extractor.ExtractFile(ctx, targetPath, outputPath)
 }

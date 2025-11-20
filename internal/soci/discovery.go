@@ -54,8 +54,15 @@ func DiscoverSOCIIndex(ctx context.Context, imageRef string) (*IndexInfo, error)
 
 // findViaReferrersAPI uses the OCI Referrers API to find SOCI indices
 func findViaReferrersAPI(ctx context.Context, ref name.Reference, digest v1.Hash) (*IndexInfo, error) {
+	// Construct a proper Digest reference from the repository and hash
+	repo := ref.Context()
+	digestRef, err := name.NewDigest(fmt.Sprintf("%s@%s", repo.String(), digest.String()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct digest reference: %w", err)
+	}
+
 	// Query the referrers API
-	index, err := remote.Referrers(digest, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	index, err := remote.Referrers(digestRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query referrers: %w", err)
 	}
@@ -112,17 +119,13 @@ func findViaTagReference(ctx context.Context, ref name.Reference, digest v1.Hash
 
 // GetSOCIIndex fetches and returns the SOCI index manifest
 func GetSOCIIndex(ctx context.Context, info *IndexInfo) (*v1.IndexManifest, error) {
-	img, err := remote.Image(info.Reference, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	_, err := remote.Image(info.Reference, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch SOCI index image: %w", err)
 	}
 
-	manifest, err := img.Manifest()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %w", err)
-	}
-
 	// The SOCI index is actually stored as an OCI index
 	// We need to parse it differently
+	// This is a placeholder for future implementation
 	return nil, fmt.Errorf("SOCI index parsing not yet implemented")
 }

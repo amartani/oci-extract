@@ -3,13 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
-	"github.com/amartani/oci-extract/internal/estargz"
+	// Commented out until full implementation
+	// "github.com/amartani/oci-extract/internal/estargz"
+	// "github.com/amartani/oci-extract/internal/remote"
+	// "github.com/amartani/oci-extract/internal/soci"
+
 	"github.com/amartani/oci-extract/internal/registry"
-	"github.com/amartani/oci-extract/internal/remote"
-	"github.com/amartani/oci-extract/internal/soci"
 	"github.com/spf13/cobra"
 )
 
@@ -145,8 +146,9 @@ func extractFromLayer(ctx context.Context, layer interface{}, filePath, outputPa
 }
 
 // Helper function to create a remote reader from a layer
-func createRemoteReader(layer interface{}) (*remote.RemoteReader, error) {
-	// This would construct the proper blob URL based on the registry and digest
-	// For now, this is a placeholder
-	return nil, fmt.Errorf("not implemented")
-}
+// Currently unused - will be implemented when remote reading is fully integrated
+// func createRemoteReader(layer interface{}) (*remote.RemoteReader, error) {
+// 	// This would construct the proper blob URL based on the registry and digest
+// 	// For now, this is a placeholder
+// 	return nil, fmt.Errorf("not implemented")
+// }
