@@ -22,22 +22,18 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
-  release:
-    name: Create Release
+  version:
+    name: Generate Version
     needs: check-ci
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.7'
 
       - name: Generate version number (ZeroVer)
         id: version
@@ -70,67 +66,95 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build artifacts
-        if: steps.check_tag.outputs.exists == 'false'
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: version
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+
+      - name: Build binary
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.version.outputs.version }}
           COMMIT: ${{ github.sha }}
           BUILD_DATE: ${{ github.event.head_commit.timestamp }}
         run: |
-          mkdir -p dist
+          BINARY_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
 
-          # Build for Linux amd64
-          GOOS=linux GOARCH=amd64 go build \
+          go build \
             -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o dist/oci-extract-${VERSION}-linux-amd64 .
+            -o "${BINARY_NAME}" .
 
-          # Build for Linux arm64
-          GOOS=linux GOARCH=arm64 go build \
-            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o dist/oci-extract-${VERSION}-linux-arm64 .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oci-extract-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: oci-extract-*
+          if-no-files-found: error
 
-          # Build for macOS amd64
-          GOOS=darwin GOARCH=amd64 go build \
-            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o dist/oci-extract-${VERSION}-darwin-amd64 .
+  release:
+    name: Create Release
+    needs: [version, build]
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
-          # Build for macOS arm64
-          GOOS=darwin GOARCH=arm64 go build \
-            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o dist/oci-extract-${VERSION}-darwin-arm64 .
-
-          # Build for Windows amd64
-          GOOS=windows GOARCH=amd64 go build \
-            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o dist/oci-extract-${VERSION}-windows-amd64.exe .
-
-          # Build for Windows arm64
-          GOOS=windows GOARCH=arm64 go build \
-            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o dist/oci-extract-${VERSION}-windows-arm64.exe .
-
-          # Create checksums
-          cd dist
+      - name: Create checksums
+        run: |
+          cd artifacts
           sha256sum oci-extract-* > checksums.txt
           cd ..
 
       - name: Create Release
-        if: steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
+          tag_name: ${{ needs.version.outputs.version }}
+          name: Release ${{ needs.version.outputs.version }}
           body: |
-            ## Release ${{ steps.version.outputs.version }}
+            ## Release ${{ needs.version.outputs.version }}
 
             Automated release created from commit ${{ github.sha }}.
 
             ### Downloads
 
             Download the appropriate binary for your platform:
-            - **Linux**: `oci-extract-${{ steps.version.outputs.version }}-linux-amd64` or `oci-extract-${{ steps.version.outputs.version }}-linux-arm64`
-            - **macOS**: `oci-extract-${{ steps.version.outputs.version }}-darwin-amd64` or `oci-extract-${{ steps.version.outputs.version }}-darwin-arm64`
-            - **Windows**: `oci-extract-${{ steps.version.outputs.version }}-windows-amd64.exe` or `oci-extract-${{ steps.version.outputs.version }}-windows-arm64.exe`
+            - **Linux**: `oci-extract-${{ needs.version.outputs.version }}-linux-amd64` or `oci-extract-${{ needs.version.outputs.version }}-linux-arm64`
+            - **macOS**: `oci-extract-${{ needs.version.outputs.version }}-darwin-amd64` or `oci-extract-${{ needs.version.outputs.version }}-darwin-arm64`
+            - **Windows**: `oci-extract-${{ needs.version.outputs.version }}-windows-amd64.exe` or `oci-extract-${{ needs.version.outputs.version }}-windows-arm64.exe`
 
             ### Checksums
 
@@ -138,11 +162,11 @@ jobs:
 
             ---
 
-            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ steps.version.outputs.version }}
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.version.outputs.version }}
           draft: false
           prerelease: false
           files: |
-            dist/oci-extract-*
-            dist/checksums.txt
+            artifacts/oci-extract-*
+            artifacts/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
