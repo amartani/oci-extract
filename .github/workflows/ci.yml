@@ -65,3 +65,153 @@ jobs:
         with:
           name: coverage
           path: coverage.out
+
+  version:
+    name: Generate Version
+    needs: [build, lint, test]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version number (ZeroVer)
+        id: version
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git tag -l "0.*" --sort=-v:refname | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            # No tags yet, start with 0.1.0
+            NEW_VERSION="0.1.0"
+          else
+            # Parse the version and increment minor
+            # Extract minor version (0.X.0)
+            MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+            NEW_MINOR=$((MINOR + 1))
+            NEW_VERSION="0.${NEW_MINOR}.0"
+          fi
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Check if version already exists
+        id: check_tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $VERSION already exists, skipping release"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  release-build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: version
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.version.outputs.version }}
+          COMMIT: ${{ github.sha }}
+          BUILD_DATE: ${{ github.event.head_commit.timestamp }}
+        run: |
+          BINARY_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
+
+          go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o "${BINARY_NAME}" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oci-extract-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: oci-extract-*
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: [version, release-build]
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          sha256sum oci-extract-* > checksums.txt
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.version }}
+          name: Release ${{ needs.version.outputs.version }}
+          body: |
+            ## Release ${{ needs.version.outputs.version }}
+
+            Automated release created from commit ${{ github.sha }}.
+
+            ### Downloads
+
+            Download the appropriate binary for your platform:
+            - **Linux**: `oci-extract-${{ needs.version.outputs.version }}-linux-amd64` or `oci-extract-${{ needs.version.outputs.version }}-linux-arm64`
+            - **macOS**: `oci-extract-${{ needs.version.outputs.version }}-darwin-amd64` or `oci-extract-${{ needs.version.outputs.version }}-darwin-arm64`
+            - **Windows**: `oci-extract-${{ needs.version.outputs.version }}-windows-amd64.exe` or `oci-extract-${{ needs.version.outputs.version }}-windows-arm64.exe`
+
+            ### Checksums
+
+            See `checksums.txt` for SHA256 checksums of all binaries.
+
+            ---
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/oci-extract-*
+            artifacts/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
