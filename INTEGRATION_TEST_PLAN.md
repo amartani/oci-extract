@@ -407,61 +407,29 @@ func BenchmarkExtractStandard(b *testing.B) {
 }
 ```
 
-### 3.3 Test Execution Script
+### 3.3 Test Execution (Go-Based)
 
+**Implementation**: All test logic is now in `tests/integration/integration_test.go`
+
+Running tests locally:
 ```bash
-#!/bin/bash
-# tests/integration/run-integration-tests.sh
-
-set -e
-
-# Configuration
-REGISTRY="ghcr.io"
-OWNER="${GITHUB_REPOSITORY_OWNER:-amartani}"
-IMAGE_BASE="${REGISTRY}/${OWNER}/oci-extract-test"
-
-# Test images to use
-IMAGES=(
-    "${IMAGE_BASE}:standard"
-    "${IMAGE_BASE}:estargz"
-    "${IMAGE_BASE}:soci"
-    "${IMAGE_BASE}:multilayer-standard"
-    "${IMAGE_BASE}:multilayer-estargz"
-    "${IMAGE_BASE}:multilayer-soci"
-)
-
-echo "=== OCI-Extract Integration Tests ==="
-echo ""
-
-# Build oci-extract binary
-echo "Building oci-extract..."
+# Build the binary first
 make build
 
-# Run Go integration tests
-echo "Running integration tests..."
-go test -v -tags=integration ./tests/integration/... \
-    -test-images="${IMAGES[@]}" \
-    -timeout=30m
-
-# Run CLI integration tests
-echo "Running CLI tests..."
-for image in "${IMAGES[@]}"; do
-    echo "Testing image: ${image}"
-
-    # Test small file
-    ./oci-extract extract "${image}" /testdata/small.txt -o /tmp/small.txt
-    diff /tmp/small.txt tests/testdata/expected_small.txt
-
-    # Test nested file
-    ./oci-extract extract "${image}" /testdata/nested/deep/file.txt -o /tmp/nested.txt
-    diff /tmp/nested.txt tests/testdata/expected_nested.txt
-
-    echo "✓ ${image} passed"
-done
-
-echo ""
-echo "=== All tests passed! ==="
+# Run integration tests (requires Docker, optional: nerdctl, soci)
+go test -v -tags=integration -timeout=30m ./tests/integration/...
 ```
+
+The Go tests automatically:
+1. Generate test data (large.bin)
+2. Build Docker images (standard, multi-layer)
+3. Convert to eStargz format (if nerdctl available)
+4. Create SOCI indices (if soci available)
+5. Push all variants to GHCR
+6. Run extraction tests against all formats
+7. Validate results and compare performance
+
+See `tests/integration/README.md` for detailed usage.
 
 ## Phase 4: GitHub Actions Workflow
 
@@ -638,11 +606,12 @@ jobs:
 
       - name: Run integration tests
         env:
+          REGISTRY: ${{ env.REGISTRY }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           TEST_IMAGE_BASE: ${{ env.IMAGE_BASE }}
           TEST_IMAGE_TAG: ${{ github.sha }}
         run: |
-          chmod +x tests/integration/run-integration-tests.sh
-          ./tests/integration/run-integration-tests.sh
+          go test -v -tags=integration -timeout=30m ./tests/integration/...
 
       - name: Upload test results
         if: always()
@@ -650,7 +619,6 @@ jobs:
         with:
           name: integration-test-results
           path: |
-            tests/integration/results/
             tests/integration/*.log
 ```
 

@@ -102,12 +102,11 @@ sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
 
 ```
 tests/integration/
-├── README.md                  # This file
-├── integration_test.go        # All integration tests (Go)
-└── run-integration-tests.sh   # Legacy shell script (deprecated)
+├── README.md           # This file
+└── integration_test.go # All integration tests (Go)
 ```
 
-All integration tests are now in `integration_test.go` which includes:
+All integration tests are in `integration_test.go` which includes:
 - `TestMain`: Setup (generates test data, builds images, converts formats)
 - `TestExtractSmallFile`: Tests extraction of small text files
 - `TestExtractNestedFile`: Tests nested directory paths
