@@ -82,9 +82,7 @@ curl -LO "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VER
 sudo tar Cxzvf /usr/local/bin nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
 sudo nerdctl --version
 
-# Also need containerd
-sudo apt-get install -y containerd
-sudo systemctl start containerd
+# Note: nerdctl will use Docker's containerd, no separate installation needed
 ```
 
 **soci** (for SOCI indices):
