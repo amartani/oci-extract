@@ -197,12 +197,12 @@ jobs:
       # Create SOCI indices for standard images
       - name: Create SOCI index for base image
         run: |
-          sudo soci create ${{ env.IMAGE_BASE }}:standard
+          sudo soci create --min-layer-size 0 ${{ env.IMAGE_BASE }}:standard
           sudo soci push ${{ env.IMAGE_BASE }}:standard
 
       - name: Create SOCI index for multi-layer image
         run: |
-          sudo soci create ${{ env.IMAGE_BASE }}:multilayer-standard
+          sudo soci create --min-layer-size 0 ${{ env.IMAGE_BASE }}:multilayer-standard
           sudo soci push ${{ env.IMAGE_BASE }}:multilayer-standard
 
       # Run integration tests
