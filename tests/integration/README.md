@@ -165,43 +165,63 @@ All integration tests are in `integration_test.go` which includes:
 
 ## Environment Variables
 
-- `TEST_IMAGE_BASE`: Base image name (default: `ghcr.io/$USER/oci-extract-test`)
-- `TEST_IMAGE_TAG`: Specific tag to test (default: `latest`)
-- `TEST_TIMEOUT`: Test timeout duration (default: `30m`)
-- `TEST_VERBOSE`: Enable verbose output (default: `false`)
+The tests use the following environment variables:
+
+- `REGISTRY`: Container registry (default: `ghcr.io`)
+- `GITHUB_REPOSITORY_OWNER`: GitHub username/org (default: current user)
+- `TEST_IMAGE_BASE`: Full image base name (default: `ghcr.io/{owner}/oci-extract-test`)
+- `TEST_IMAGE_TAG`: Image tag to use (default: `latest`)
+
+Example:
+```bash
+export TEST_IMAGE_BASE=ghcr.io/myuser/oci-extract-test
+export TEST_IMAGE_TAG=v1.0.0
+go test -v -tags=integration ./tests/integration/...
+```
 
 ## CI/CD Integration
 
-Tests run automatically via GitHub Actions:
-- On every push
-- On pull requests
-- Daily scheduled runs
-- Manual workflow dispatch
+Tests run automatically via GitHub Actions (`.github/workflows/ci.yml`):
+- On every push to any branch
+- On all pull requests
+- Integration tests must pass before releases are created
 
-See `.github/workflows/integration-tests.yml` for details.
+The workflow:
+1. Installs Docker, nerdctl, and soci
+2. Runs Go integration tests which handle image building and conversion
+3. Gates version generation and releases on test success
 
 ## Adding New Tests
 
-1. Add test data to `test-images/base/testdata/`
-2. Update expected values in `fixtures.go`
-3. Write test function in appropriate `*_test.go` file
-4. Add to test runner script if needed
-5. Update this README
+To add a new test case:
 
-Example:
+1. **Add test data** to `test-images/base/testdata/` or `test-images/multilayer/`
+2. **Rebuild the Dockerfile** if needed to include new files
+3. **Add test function** to `integration_test.go`:
+
 ```go
 func TestExtractNewFile(t *testing.T) {
-    formats := []string{"standard", "estargz", "soci"}
+    formats := []string{"standard", "estargz"}
 
     for _, format := range formats {
         t.Run(format, func(t *testing.T) {
-            image := fmt.Sprintf("%s:%s", testImageBase, format)
-            output := extractFile(t, image, "/testdata/newfile.txt")
-            assert.Equal(t, expectedContent, output)
+            image := fmt.Sprintf("%s:%s", imageBase, format)
+
+            content, err := extractFile(t, image, "/testdata/newfile.txt")
+            if err != nil {
+                t.Fatalf("Failed to extract file: %v", err)
+            }
+
+            expected := "expected content"
+            if content != expected {
+                t.Errorf("Content mismatch:\nExpected: %q\nGot: %q", expected, content)
+            }
         })
     }
 }
 ```
+
+4. **Update this README** with new test case documentation
 
 ## Troubleshooting
 
@@ -239,8 +259,8 @@ Based on architecture and real-world testing:
 
 ## References
 
-- [Integration Test Plan](../../INTEGRATION_TEST_PLAN.md)
-- [Test Images](../../test-images/README.md)
+- [Test Images Documentation](../../test-images/README.md)
+- [Main README](../../README.md)
 - [OCI Image Spec](https://github.com/opencontainers/image-spec)
 - [eStargz Spec](https://github.com/containerd/stargz-snapshotter)
 - [SOCI Spec](https://github.com/awslabs/soci-snapshotter)
