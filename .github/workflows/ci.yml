@@ -66,9 +66,87 @@ jobs:
           name: coverage
           path: coverage.out
 
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build oci-extract binary
+        run: make build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Install nerdctl for eStargz conversion (uses Docker's containerd)
+      - name: Install nerdctl
+        run: |
+          NERDCTL_VERSION=1.7.6
+          curl -LO "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz"
+          sudo tar Cxzvf /usr/local/bin nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
+          sudo nerdctl --version
+
+      - name: Log in to GHCR with nerdctl
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo nerdctl login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # Install SOCI for creating indices
+      - name: Install SOCI
+        run: |
+          SOCI_VERSION=0.11.1
+          curl -LO "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_VERSION}/soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz"
+          tar -xzf soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz
+          sudo install soci /usr/local/bin/
+          soci --version
+
+          # Create SOCI content store directory with proper permissions
+          sudo mkdir -p /var/lib/soci-snapshotter-grpc
+          sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
+
+      # Run integration tests (Go tests will build images and convert formats)
+      - name: Run integration tests
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          TEST_IMAGE_BASE: ${{ env.IMAGE_BASE }}
+          TEST_IMAGE_TAG: ${{ github.sha }}
+        run: |
+          go test -v -tags=integration -timeout=30m ./tests/integration/...
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: |
+            tests/integration/*.log
+          if-no-files-found: ignore
+
   version:
     name: Generate Version
-    needs: [build, lint, test]
+    needs: [build, lint, test, integration-tests]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:

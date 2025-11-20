@@ -1,0 +1,1 @@
+Nested file test - testing deep path extraction

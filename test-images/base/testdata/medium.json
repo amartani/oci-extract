@@ -1,0 +1,28 @@
+{
+  "name": "oci-extract-test",
+  "version": "1.0.0",
+  "description": "Test configuration file for OCI-Extract integration tests",
+  "formats": [
+    "standard",
+    "estargz",
+    "soci"
+  ],
+  "test_data": {
+    "string": "sample value",
+    "number": 12345,
+    "boolean": true,
+    "array": [1, 2, 3, 4, 5],
+    "nested": {
+      "level1": {
+        "level2": {
+          "level3": "deep value"
+        }
+      }
+    }
+  },
+  "metadata": {
+    "created": "2025-11-20",
+    "purpose": "integration-testing",
+    "size_kb": 10
+  }
+}
