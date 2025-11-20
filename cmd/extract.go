@@ -131,7 +131,7 @@ func extractFromLayer(ctx context.Context, layerInfo *registry.EnhancedLayerInfo
 		if err != nil {
 			return false, fmt.Errorf("failed to create remote reader: %w", err)
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 
 		// Create eStargz extractor
 		extractor := estargz.NewExtractor(reader, layerInfo.Size)
