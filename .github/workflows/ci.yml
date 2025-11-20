@@ -138,6 +138,10 @@ jobs:
           sudo tar Cxzvf /usr/local/bin nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
           sudo nerdctl --version
 
+      - name: Log in to GHCR with nerdctl
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo nerdctl login ghcr.io -u ${{ github.actor }} --password-stdin
+
       # Convert base image to eStargz
       - name: Convert base image to eStargz
         run: |
