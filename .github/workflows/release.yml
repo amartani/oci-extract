@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # Wait for CI checks to pass
+  check-ci:
+    name: Check CI Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for CI checks
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-regexp: '(Build|Lint|Test)'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+  release:
+    name: Create Release
+    needs: check-ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+
+      - name: Generate version number (ZeroVer)
+        id: version
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git tag -l "0.*" --sort=-v:refname | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            # No tags yet, start with 0.1.0
+            NEW_VERSION="0.1.0"
+          else
+            # Parse the version and increment minor
+            # Extract minor version (0.X.0)
+            MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+            NEW_MINOR=$((MINOR + 1))
+            NEW_VERSION="0.${NEW_MINOR}.0"
+          fi
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Check if version already exists
+        id: check_tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $VERSION already exists, skipping release"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build artifacts
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          COMMIT: ${{ github.sha }}
+          BUILD_DATE: ${{ github.event.head_commit.timestamp }}
+        run: |
+          mkdir -p dist
+
+          # Build for Linux amd64
+          GOOS=linux GOARCH=amd64 go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o dist/oci-extract-${VERSION}-linux-amd64 .
+
+          # Build for Linux arm64
+          GOOS=linux GOARCH=arm64 go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o dist/oci-extract-${VERSION}-linux-arm64 .
+
+          # Build for macOS amd64
+          GOOS=darwin GOARCH=amd64 go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o dist/oci-extract-${VERSION}-darwin-amd64 .
+
+          # Build for macOS arm64
+          GOOS=darwin GOARCH=arm64 go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o dist/oci-extract-${VERSION}-darwin-arm64 .
+
+          # Build for Windows amd64
+          GOOS=windows GOARCH=amd64 go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o dist/oci-extract-${VERSION}-windows-amd64.exe .
+
+          # Build for Windows arm64
+          GOOS=windows GOARCH=arm64 go build \
+            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
+            -o dist/oci-extract-${VERSION}-windows-arm64.exe .
+
+          # Create checksums
+          cd dist
+          sha256sum oci-extract-* > checksums.txt
+          cd ..
+
+      - name: Create Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## Release ${{ steps.version.outputs.version }}
+
+            Automated release created from commit ${{ github.sha }}.
+
+            ### Downloads
+
+            Download the appropriate binary for your platform:
+            - **Linux**: `oci-extract-${{ steps.version.outputs.version }}-linux-amd64` or `oci-extract-${{ steps.version.outputs.version }}-linux-arm64`
+            - **macOS**: `oci-extract-${{ steps.version.outputs.version }}-darwin-amd64` or `oci-extract-${{ steps.version.outputs.version }}-darwin-arm64`
+            - **Windows**: `oci-extract-${{ steps.version.outputs.version }}-windows-amd64.exe` or `oci-extract-${{ steps.version.outputs.version }}-windows-arm64.exe`
+
+            ### Checksums
+
+            See `checksums.txt` for SHA256 checksums of all binaries.
+
+            ---
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/oci-extract-*
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
