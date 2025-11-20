@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	// Commented out until full implementation
-	// "github.com/amartani/oci-extract/internal/estargz"
-	// "github.com/amartani/oci-extract/internal/remote"
-	// "github.com/amartani/oci-extract/internal/soci"
-
+	"github.com/amartani/oci-extract/internal/detector"
+	"github.com/amartani/oci-extract/internal/estargz"
 	"github.com/amartani/oci-extract/internal/registry"
+	"github.com/amartani/oci-extract/internal/remote"
+	"github.com/amartani/oci-extract/internal/standard"
 	"github.com/spf13/cobra"
 )
 
@@ -68,27 +67,26 @@ func runExtract(cmd *cobra.Command, args []string) error {
 	// Create registry client
 	client := registry.NewClient()
 
-	// Get image layers
-	layers, err := client.GetLayers(ctx, imageRef)
+	// Get enhanced layers with blob URLs
+	enhancedLayers, err := client.GetEnhancedLayers(ctx, imageRef)
 	if err != nil {
 		return fmt.Errorf("failed to get image layers: %w", err)
 	}
 
 	if verbose {
-		fmt.Printf("Found %d layers\n", len(layers))
+		fmt.Printf("Found %d layers\n", len(enhancedLayers))
 	}
 
 	// Try to extract from each layer (bottom-up)
-	for i := len(layers) - 1; i >= 0; i-- {
-		layer := layers[i]
+	for i := len(enhancedLayers) - 1; i >= 0; i-- {
+		layerInfo := enhancedLayers[i]
 
 		if verbose {
-			digest, _ := layer.Digest()
-			fmt.Printf("Checking layer %s...\n", digest)
+			fmt.Printf("Checking layer %s...\n", layerInfo.Digest)
 		}
 
 		// Detect format and extract
-		extracted, err := extractFromLayer(ctx, layer, filePath, outputPath, format, verbose)
+		extracted, err := extractFromLayer(ctx, layerInfo, filePath, outputPath, format, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Printf("  Error: %v\n", err)
@@ -105,50 +103,78 @@ func runExtract(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("file %s not found in any layer of image %s", filePath, imageRef)
 }
 
-func extractFromLayer(ctx context.Context, layer interface{}, filePath, outputPath, formatHint string, verbose bool) (bool, error) {
-	// This is where we'd implement the format detection and extraction logic
-	// For now, let's try eStargz first
+func extractFromLayer(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, filePath, outputPath, formatHint string, verbose bool) (bool, error) {
+	// Detect format if auto
+	formatToUse := formatHint
+	if formatHint == "auto" {
+		detectedFormat, err := detector.DetectFormat(ctx, layerInfo.Layer)
+		if err != nil {
+			if verbose {
+				fmt.Printf("  Format detection failed: %v, trying eStargz anyway\n", err)
+			}
+			detectedFormat = detector.FormatEStargz
+		}
+		formatToUse = detectedFormat.String()
+		if verbose {
+			fmt.Printf("  Detected format: %s\n", formatToUse)
+		}
+	}
 
-	if formatHint == "auto" || formatHint == "estargz" {
-		// Try eStargz extraction
+	// Try eStargz extraction
+	if formatToUse == "auto" || formatToUse == "estargz" {
 		if verbose {
 			fmt.Println("  Trying eStargz format...")
 		}
 
-		// Get layer as compressed blob
-		// In a real implementation, we'd create a RemoteReader from the layer URL
-		// For now, this is a placeholder
+		// Create RemoteReader for the layer
+		reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
+		if err != nil {
+			return false, fmt.Errorf("failed to create remote reader: %w", err)
+		}
+		defer reader.Close()
 
-		// Example of how it would work:
-		// reader, err := remote.NewRemoteReader(layerURL)
-		// if err != nil {
-		//     return false, err
-		// }
-		// defer reader.Close()
-		//
-		// extractor := estargz.NewExtractor(reader)
-		// err = extractor.ExtractFile(ctx, filePath, outputPath)
-		// if err == nil {
-		//     return true, nil
-		// }
-	}
+		// Create eStargz extractor
+		extractor := estargz.NewExtractor(reader, layerInfo.Size)
 
-	if formatHint == "auto" || formatHint == "soci" {
-		// Try SOCI extraction
-		if verbose {
-			fmt.Println("  Trying SOCI format...")
+		// Try to extract the file
+		err = extractor.ExtractFile(ctx, filePath, outputPath)
+		if err == nil {
+			// Success!
+			return true, nil
 		}
 
-		// SOCI extraction would follow a similar pattern
+		if verbose {
+			fmt.Printf("  eStargz extraction failed: %v\n", err)
+		}
+
+		// If it's not a "file not found" error, return the error
+		// Otherwise, continue trying other formats
 	}
 
-	return false, fmt.Errorf("extraction not implemented for this format")
-}
+	// Try standard layer extraction as fallback
+	if formatToUse == "auto" || formatToUse == "standard" {
+		if verbose {
+			fmt.Println("  Trying standard format...")
+		}
 
-// Helper function to create a remote reader from a layer
-// Currently unused - will be implemented when remote reading is fully integrated
-// func createRemoteReader(layer interface{}) (*remote.RemoteReader, error) {
-// 	// This would construct the proper blob URL based on the registry and digest
-// 	// For now, this is a placeholder
-// 	return nil, fmt.Errorf("not implemented")
-// }
+		// Create standard extractor
+		// This downloads and decompresses the entire layer
+		extractor := standard.NewExtractor(layerInfo.Layer)
+
+		// Try to extract the file
+		err := extractor.ExtractFile(ctx, filePath, outputPath)
+		if err == nil {
+			// Success!
+			return true, nil
+		}
+
+		if verbose {
+			fmt.Printf("  Standard extraction failed: %v\n", err)
+		}
+
+		// Return the error if it's not a "file not found" error
+		// Otherwise, continue to next layer
+	}
+
+	return false, nil
+}

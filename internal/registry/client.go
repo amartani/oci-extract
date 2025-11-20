@@ -13,6 +13,8 @@ import (
 // Client handles OCI registry operations
 type Client struct {
 	authOpts []remote.Option
+	imageRef string // Store the image reference for URL construction
+	ref      name.Reference
 }
 
 // NewClient creates a new registry client with authentication
@@ -30,6 +32,10 @@ func (c *Client) GetImage(ctx context.Context, imageRef string) (v1.Image, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse image reference %s: %w", imageRef, err)
 	}
+
+	// Store the reference for later use
+	c.imageRef = imageRef
+	c.ref = ref
 
 	img, err := remote.Image(ref, c.authOpts...)
 	if err != nil {
@@ -76,16 +82,39 @@ func (c *Client) GetLayerURL(layer v1.Layer) (string, error) {
 		return "", fmt.Errorf("failed to get layer digest: %w", err)
 	}
 
-	// This is a simplified approach - in production you'd need to construct
-	// the proper blob URL based on the registry API
-	return digest.String(), nil
+	if c.ref == nil {
+		return "", fmt.Errorf("no image reference available - call GetImage first")
+	}
+
+	// Construct the blob URL: registry/v2/repository/blobs/digest
+	repo := c.ref.Context()
+	registry := repo.Registry.Name()
+	repoName := repo.RepositoryStr()
+
+	// For Docker Hub, use registry-1.docker.io
+	if registry == "index.docker.io" {
+		registry = "registry-1.docker.io"
+	}
+
+	blobURL := fmt.Sprintf("https://%s/v2/%s/blobs/%s", registry, repoName, digest.String())
+	return blobURL, nil
 }
 
 // LayerInfo contains metadata about a layer
 type LayerInfo struct {
-	Digest   v1.Hash
-	Size     int64
+	Digest    v1.Hash
+	Size      int64
 	MediaType string
+	BlobURL   string // The direct URL to download the layer
+}
+
+// EnhancedLayerInfo contains a layer with its metadata and download URL
+type EnhancedLayerInfo struct {
+	Layer     v1.Layer
+	Digest    v1.Hash
+	Size      int64
+	MediaType string
+	BlobURL   string
 }
 
 // GetLayerInfo returns metadata about a layer
@@ -105,9 +134,41 @@ func (c *Client) GetLayerInfo(layer v1.Layer) (*LayerInfo, error) {
 		return nil, fmt.Errorf("failed to get media type: %w", err)
 	}
 
+	blobURL, err := c.GetLayerURL(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blob URL: %w", err)
+	}
+
 	return &LayerInfo{
-		Digest:   digest,
-		Size:     size,
+		Digest:    digest,
+		Size:      size,
 		MediaType: string(mediaType),
+		BlobURL:   blobURL,
 	}, nil
+}
+
+// GetEnhancedLayers returns all layers with their metadata and download URLs
+func (c *Client) GetEnhancedLayers(ctx context.Context, imageRef string) ([]*EnhancedLayerInfo, error) {
+	layers, err := c.GetLayers(ctx, imageRef)
+	if err != nil {
+		return nil, err
+	}
+
+	enhancedLayers := make([]*EnhancedLayerInfo, 0, len(layers))
+	for _, layer := range layers {
+		info, err := c.GetLayerInfo(layer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get layer info: %w", err)
+		}
+
+		enhancedLayers = append(enhancedLayers, &EnhancedLayerInfo{
+			Layer:     layer,
+			Digest:    info.Digest,
+			Size:      info.Size,
+			MediaType: info.MediaType,
+			BlobURL:   info.BlobURL,
+		})
+	}
+
+	return enhancedLayers, nil
 }
