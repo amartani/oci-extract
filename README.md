@@ -168,8 +168,21 @@ go build -o oci-extract .
 
 ### Running Tests
 
+**Unit Tests** (fast, no external dependencies):
 ```bash
+# Run all unit tests
 go test ./...
+
+# Run with coverage
+go test -v -race -coverprofile=coverage.out ./...
+```
+
+**Integration Tests** (requires Docker, nerdctl, soci):
+```bash
+# Run integration tests (builds images, converts formats, tests extraction)
+go test -v -tags=integration -timeout=30m ./tests/integration/...
+
+# See tests/integration/README.md for more details
 ```
 
 ### Adding New Format Support

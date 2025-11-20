@@ -11,63 +11,115 @@ These tests validate:
 - Error cases (file not found, invalid images)
 - Performance characteristics
 
+## Architecture
+
+The integration tests are written in Go and automatically:
+1. Generate test data (including large binary files)
+2. Build Docker test images
+3. Convert images to eStargz format (using nerdctl)
+4. Create SOCI indices (using soci CLI)
+5. Push all variants to GitHub Container Registry
+6. Run extraction tests against all formats
+
+This approach keeps the test logic in Go and makes the tests easier to maintain.
+
 ## Running Tests
+
+### Unit Tests vs Integration Tests
+
+**Unit Tests** (fast, no external dependencies):
+```bash
+# Run all unit tests
+go test ./...
+
+# Run unit tests with coverage
+go test -v -race -coverprofile=coverage.out ./...
+```
+
+**Integration Tests** (slower, requires Docker and registry access):
+```bash
+# Run integration tests
+go test -v -tags=integration ./tests/integration/...
+
+# Run with timeout for long-running tests
+go test -v -tags=integration -timeout=30m ./tests/integration/...
+
+# Run specific integration test
+go test -v -tags=integration ./tests/integration/... -run TestExtractSmallFile
+
+# Skip long-running tests
+go test -v -tags=integration -short ./tests/integration/...
+```
 
 ### Prerequisites
 
-1. **Test Images**: Images must be available in GitHub Container Registry
+1. **Docker**: Required for building test images
    ```bash
-   # Images are built automatically by CI, or build manually:
-   cd ../../test-images
-   docker build -t ghcr.io/YOUR_USERNAME/oci-extract-test:standard ./base
-   docker push ghcr.io/YOUR_USERNAME/oci-extract-test:standard
+   docker --version
    ```
 
-2. **Authentication**: Login to GHCR if using private images
-   ```bash
-   echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
-   ```
-
-3. **OCI-Extract Binary**: Build the binary
+2. **OCI-Extract Binary**: Build the binary first
    ```bash
    cd ../..
    make build
    ```
 
-### Run All Tests
+3. **Authentication**: Login to GHCR
+   ```bash
+   echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+   ```
 
+4. **Optional Tools** (for full format support):
+   - **nerdctl**: For eStargz conversion (tests will skip if not available)
+   - **soci**: For SOCI index creation (tests will skip if not available)
+
+### Installing Optional Tools
+
+**nerdctl** (for eStargz):
 ```bash
-# From repository root
-./tests/integration/run-integration-tests.sh
+NERDCTL_VERSION=1.7.6
+curl -LO "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz"
+sudo tar Cxzvf /usr/local/bin nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
+sudo nerdctl --version
+
+# Also need containerd
+sudo apt-get install -y containerd
+sudo systemctl start containerd
 ```
 
-### Run Specific Tests
-
+**soci** (for SOCI indices):
 ```bash
-# Run only Go integration tests
-go test -v -tags=integration ./tests/integration/...
+SOCI_VERSION=0.11.1
+curl -LO "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_VERSION}/soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz"
+tar -xzf soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz
+sudo install soci /usr/local/bin/
+soci --version
 
-# Run specific test
-go test -v -tags=integration ./tests/integration/... -run TestExtractSmallFile
-
-# Run with custom image
-TEST_IMAGE_BASE=ghcr.io/myuser/oci-extract-test go test -v -tags=integration ./tests/integration/...
+# Create content store directory
+sudo mkdir -p /var/lib/soci-snapshotter-grpc
+sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
 ```
 
 ## Test Structure
 
 ```
 tests/integration/
-├── README.md                 # This file
-├── run-integration-tests.sh  # Test runner script
-├── main_test.go             # Test setup and teardown
-├── fixtures.go              # Expected test data
-├── helpers.go               # Test utilities
-├── standard_test.go         # Standard format tests
-├── estargz_test.go          # eStargz format tests
-├── soci_test.go             # SOCI format tests
-└── performance_test.go      # Performance benchmarks
+├── README.md                  # This file
+├── integration_test.go        # All integration tests (Go)
+└── run-integration-tests.sh   # Legacy shell script (deprecated)
 ```
+
+All integration tests are now in `integration_test.go` which includes:
+- `TestMain`: Setup (generates test data, builds images, converts formats)
+- `TestExtractSmallFile`: Tests extraction of small text files
+- `TestExtractNestedFile`: Tests nested directory paths
+- `TestExtractJSONFile`: Tests JSON extraction and validation
+- `TestExtractLargeFile`: Tests large binary file extraction
+- `TestExtractMultiLayer`: Tests multi-layer image handling
+- `TestExtractNonExistentFile`: Tests error handling
+- `TestExtractWithVerbose`: Tests verbose output
+- `TestPerformanceComparison`: Compares performance across formats
+- Benchmark tests for performance measurement
 
 ## Test Cases
 

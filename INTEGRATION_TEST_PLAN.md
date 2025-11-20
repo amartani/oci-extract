@@ -6,7 +6,7 @@ This document outlines a comprehensive integration testing strategy for OCI-Extr
 
 ## ✅ Implementation Status
 
-**STATUS**: **IMPLEMENTED** (as of 2025-11-20)
+**STATUS**: **IMPLEMENTED AND REFACTORED** (as of 2025-11-20)
 
 The integration test infrastructure has been fully implemented and integrated into the CI/CD pipeline:
 
@@ -15,6 +15,7 @@ The integration test infrastructure has been fully implemented and integrated in
 - ✅ **Automated Testing**: Runs on every push and PR
 - ✅ **Format Coverage**: Supports Standard OCI, eStargz, and SOCI formats
 - ✅ **Release Gating**: Releases now depend on integration tests passing
+- ✅ **Go-Based Tests**: Refactored from shell scripts to Go (November 2025)
 
 ### Workflow Integration
 
@@ -27,10 +28,9 @@ jobs:
   test: ...
 
   integration-tests:
-    # Builds test images
-    # Converts to eStargz format
-    # Creates SOCI indices
-    # Runs integration test suite
+    # Installs tools: nerdctl, soci
+    # Runs: go test -v -tags=integration -timeout=30m ./tests/integration/...
+    # Go tests handle: building images, format conversion, extraction tests
 
   version:
     needs: [build, lint, test, integration-tests]  # ← Gates releases
@@ -44,21 +44,30 @@ jobs:
 
 ### What Happens on Every CI Run
 
-1. **Build Phase**: Standard test images are built and pushed to GHCR
+All steps are now orchestrated by Go tests (`tests/integration/integration_test.go`):
+
+1. **Setup Phase** (TestMain):
+   - Generates test data (including large.bin)
+   - Locates oci-extract binary
+
+2. **Build Phase**: Go code builds and pushes standard test images
    - `ghcr.io/{owner}/oci-extract-test:standard`
    - `ghcr.io/{owner}/oci-extract-test:multilayer-standard`
 
-2. **Conversion Phase**: Images are converted to optimized formats
+3. **Conversion Phase**: Go code converts to optimized formats
    - **eStargz**: Using `nerdctl image convert --estargz`
-   - **SOCI**: Using `soci create` and `soci push`
+   - **SOCI**: Using `soci create --min-layer-size 0` and `soci push`
 
-3. **Test Phase**: Integration tests run against all formats
+4. **Test Phase**: Go integration tests run against all formats
    - Small file extraction tests
    - Nested path tests
    - JSON validation tests
+   - Large file extraction tests
+   - Multi-layer tests
    - Error handling tests
+   - Performance comparisons
 
-4. **Gate Phase**: Releases only proceed if all integration tests pass
+5. **Gate Phase**: Releases only proceed if all integration tests pass
 
 ### Image Tags Available
 
