@@ -29,7 +29,7 @@ func TestRemoteReader(t *testing.T) {
 		if rangeHeader != "" {
 			// Parse range header (simplified)
 			var start, end int64
-			fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end)
+			_, _ = fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end)
 
 			if start < 0 || start >= dataSize {
 				w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
@@ -42,14 +42,14 @@ func TestRemoteReader(t *testing.T) {
 
 			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, dataSize))
 			w.WriteHeader(http.StatusPartialContent)
-			w.Write(testData[start : end+1])
+			_, _ = w.Write(testData[start : end+1])
 			return
 		}
 
 		// Full content
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", dataSize))
 		w.WriteHeader(http.StatusOK)
-		w.Write(testData)
+		_, _ = w.Write(testData)
 	}))
 	defer server.Close()
 
@@ -58,7 +58,7 @@ func TestRemoteReader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create RemoteReader: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Test 1: Check size
 	if reader.Size() != dataSize {
@@ -80,7 +80,7 @@ func TestRemoteReader(t *testing.T) {
 
 	// Test 3: Read from middle
 	buf = make([]byte, 5)
-	n, err = reader.ReadAt(buf, 7)
+	_, err = reader.ReadAt(buf, 7)
 	if err != nil {
 		t.Errorf("ReadAt from middle failed: %v", err)
 	}
@@ -114,10 +114,10 @@ func TestRemoteReaderCache(t *testing.T) {
 		rangeHeader := r.Header.Get("Range")
 		if rangeHeader != "" {
 			var start, end int64
-			fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end)
+			_, _ = fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end)
 			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(testData)))
 			w.WriteHeader(http.StatusPartialContent)
-			w.Write(testData[start : end+1])
+			_, _ = w.Write(testData[start : end+1])
 		}
 	}))
 	defer server.Close()
@@ -126,16 +126,16 @@ func TestRemoteReaderCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create RemoteReader: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// First read
 	buf1 := make([]byte, 5)
-	reader.ReadAt(buf1, 0)
+	_, _ = reader.ReadAt(buf1, 0)
 	firstRequestCount := requestCount
 
 	// Second read from same location (should use cache)
 	buf2 := make([]byte, 5)
-	reader.ReadAt(buf2, 0)
+	_, _ = reader.ReadAt(buf2, 0)
 
 	// The request count should be the same, indicating cache was used
 	if requestCount != firstRequestCount {

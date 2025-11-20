@@ -77,7 +77,7 @@ func checkEStargzFooter(layer v1.Layer) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// The eStargz footer is in the last 47 bytes
 	// We'd need to seek to the end, but rc is just an io.ReadCloser

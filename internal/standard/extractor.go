@@ -34,14 +34,14 @@ func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPa
 	if err != nil {
 		return fmt.Errorf("failed to get compressed layer: %w", err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Create gzip reader
 	gzipReader, err := gzip.NewReader(rc)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() { _ = gzipReader.Close() }()
 
 	// Create tar reader
 	tarReader := tar.NewReader(gzipReader)
@@ -87,7 +87,7 @@ func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPa
 			if err != nil {
 				return fmt.Errorf("failed to create output file: %w", err)
 			}
-			defer outFile.Close()
+			defer func() { _ = outFile.Close() }()
 
 			// Copy the file contents
 			_, err = io.Copy(outFile, tarReader)
@@ -109,14 +109,14 @@ func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get compressed layer: %w", err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Create gzip reader
 	gzipReader, err := gzip.NewReader(rc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() { _ = gzipReader.Close() }()
 
 	// Create tar reader
 	tarReader := tar.NewReader(gzipReader)

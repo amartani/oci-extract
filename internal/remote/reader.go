@@ -29,7 +29,7 @@ func NewRemoteReader(url string) (*RemoteReader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to HEAD %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HEAD request failed with status: %d", resp.StatusCode)
@@ -86,7 +86,7 @@ func (r *RemoteReader) ReadAt(p []byte, off int64) (n int, err error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute range request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("range request failed with status: %d", resp.StatusCode)

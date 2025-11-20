@@ -105,7 +105,7 @@ func (o *Orchestrator) extractFromLayer(ctx context.Context, layer v1.Layer, soc
 	if err != nil {
 		return false, fmt.Errorf("failed to create layer reader: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Extract based on format
 	switch format {
@@ -122,7 +122,9 @@ func (o *Orchestrator) extractFromLayer(ctx context.Context, layer v1.Layer, soc
 
 // extractEStargz extracts from an eStargz layer
 func (o *Orchestrator) extractEStargz(ctx context.Context, reader io.ReaderAt, opts ExtractOptions) (bool, error) {
-	extractor := estargz.NewExtractor(reader)
+	// RemoteReader has a Size() method
+	rr := reader.(*remote.RemoteReader)
+	extractor := estargz.NewExtractor(reader, rr.Size())
 	err := extractor.ExtractFile(ctx, opts.FilePath, opts.OutputPath)
 	if err != nil {
 		return false, err
@@ -143,7 +145,9 @@ func (o *Orchestrator) extractSOCI(ctx context.Context, reader io.ReaderAt, laye
 
 	var ztocBlob []byte // Would be fetched from registry
 
-	extractor, err := soci.NewExtractor(reader, ztocBlob)
+	// RemoteReader has a Size() method
+	rr := reader.(*remote.RemoteReader)
+	extractor, err := soci.NewExtractor(reader, rr.Size(), ztocBlob)
 	if err != nil {
 		return false, fmt.Errorf("failed to create SOCI extractor: %w", err)
 	}

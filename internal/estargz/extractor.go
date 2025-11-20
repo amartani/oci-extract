@@ -32,7 +32,7 @@ func IsEStargz(layer v1.Layer) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to get compressed layer: %w", err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Create a ReaderAt from the reader
 	// Note: This is a simplified check - in production you'd want to check
@@ -82,7 +82,7 @@ func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPa
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	// Copy the file contents
 	_, err = io.Copy(outFile, fileReader)
