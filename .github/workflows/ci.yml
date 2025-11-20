@@ -190,6 +190,10 @@ jobs:
           sudo install soci /usr/local/bin/
           soci --version
 
+          # Create SOCI content store directory with proper permissions
+          sudo mkdir -p /var/lib/soci-snapshotter-grpc
+          sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
+
       # Create SOCI indices for standard images
       - name: Create SOCI index for base image
         run: |
