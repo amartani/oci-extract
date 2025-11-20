@@ -14,10 +14,12 @@ type RemoteReader struct {
 	size   int64
 
 	// Simple cache for small reads
-	cacheMu    sync.RWMutex
-	cacheStart int64
-	cacheData  []byte
-	cacheSize  int
+	cacheMu     sync.RWMutex
+	cacheStart  int64
+	cacheEnd    int64 // Tracks the end of valid cached data
+	cacheData   []byte
+	cacheSize   int
+	cacheValid  bool // Tracks if cache contains valid data
 }
 
 // NewRemoteReader creates a new RemoteReader for the given URL
@@ -61,9 +63,9 @@ func (r *RemoteReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 	// Check cache first
 	r.cacheMu.RLock()
-	if off >= r.cacheStart && off+int64(len(p)) <= r.cacheStart+int64(len(r.cacheData)) {
+	if r.cacheValid && off >= r.cacheStart && off+int64(len(p)) <= r.cacheEnd {
 		cacheOffset := off - r.cacheStart
-		n = copy(p, r.cacheData[cacheOffset:])
+		n = copy(p, r.cacheData[cacheOffset:cacheOffset+int64(len(p))])
 		r.cacheMu.RUnlock()
 		return n, nil
 	}
@@ -99,10 +101,12 @@ func (r *RemoteReader) ReadAt(p []byte, off int64) (n int, err error) {
 	}
 
 	// Update cache if this was a small read
-	if len(p) <= r.cacheSize {
+	if n > 0 && n <= r.cacheSize {
 		r.cacheMu.Lock()
 		r.cacheStart = off
-		copy(r.cacheData, p)
+		r.cacheEnd = off + int64(n)
+		copy(r.cacheData, p[:n])
+		r.cacheValid = true
 		r.cacheMu.Unlock()
 	}
 
