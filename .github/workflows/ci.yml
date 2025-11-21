@@ -95,7 +95,7 @@ jobs:
       - name: Build oci-extract binary
         run: |
           mise install
-          mise run build
+          mise run build-release
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -169,11 +169,11 @@ This project uses [mise](https://mise.jdx.dev/) for development tool management 
 # Install development tools (Go, golangci-lint)
 mise install
 
-# Build the binary
+# Build the binary (for development)
 mise run build
 
-# Build for all platforms
-mise run build-all
+# Build with version stamping and optimizations (for release)
+mise run build-release
 ```
 
 ### Running Tests
@@ -205,6 +205,7 @@ mise tasks
 
 Common tasks:
 - `mise run build` - Build the binary
+- `mise run build-release` - Build with version stamping and optimizations
 - `mise run test` - Run tests
 - `mise run lint` - Run linter
 - `mise run fmt` - Format code
