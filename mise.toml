@@ -4,6 +4,8 @@
 [tools]
 go = "1.24.7"
 golangci-lint = "latest"
+"github:containerd/nerdctl" = "latest"
+"github:awslabs/soci-snapshotter" = "latest"
 
 [env]
 BINARY_NAME = "oci-extract"
@@ -40,6 +42,10 @@ run = 'go test -v -race -coverprofile=coverage.out ./...'
 description = "Run tests with coverage report"
 depends = ["test"]
 run = 'go tool cover -html=coverage.out -o coverage.html'
+
+[tasks."integration-test"]
+description = "Run integration tests (requires Docker)"
+run = 'go test -v -tags=integration -timeout=30m ./tests/integration/...'
 
 # Clean task
 [tasks.clean]

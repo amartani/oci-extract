@@ -14,13 +14,14 @@ A CLI tool for extracting specific files from OCI/Docker images without mounting
 
 ## Installation
 
-### From Source
+### Download Binary
+
+Download the latest release for your platform from the [GitHub releases page](https://github.com/amartani/oci-extract/releases).
+
+### Using mise
 
 ```bash
-git clone https://github.com/amartani/oci-extract
-cd oci-extract
-mise install  # Install Go and other development tools
-mise run build
+mise use --global github:amartani/oci-extract
 ```
 
 ### Using Go Install
@@ -187,10 +188,11 @@ mise run test
 mise run test-coverage
 ```
 
-**Integration Tests** (requires Docker, nerdctl, soci):
+**Integration Tests** (requires Docker):
 ```bash
 # Run integration tests (builds images, converts formats, tests extraction)
-go test -v -tags=integration -timeout=30m ./tests/integration/...
+# This task installs nerdctl and soci automatically
+mise run integration-test
 
 # See tests/integration/README.md for more details
 ```
@@ -206,7 +208,8 @@ mise tasks
 Common tasks:
 - `mise run build` - Build the binary
 - `mise run build-release` - Build with version stamping and optimizations
-- `mise run test` - Run tests
+- `mise run test` - Run unit tests
+- `mise run integration-test` - Run integration tests (requires Docker)
 - `mise run lint` - Run linter
 - `mise run fmt` - Format code
 - `mise run clean` - Remove build artifacts
