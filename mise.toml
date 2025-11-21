@@ -1,0 +1,115 @@
+# mise configuration for oci-extract
+# https://mise.jdx.dev/
+
+[tools]
+go = "1.24.7"
+"ubi:golangci/golangci-lint" = "latest"
+
+[env]
+BINARY_NAME = "oci-extract"
+
+# Build tasks
+[tasks.build]
+description = "Build the binary"
+run = """
+echo "Building $BINARY_NAME..."
+VERSION=${VERSION:-dev}
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u '+%Y-%m-%d_%H:%M:%S')
+go build -ldflags "-X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" -o $BINARY_NAME .
+"""
+
+[tasks."build-all"]
+description = "Build for multiple platforms"
+run = """
+echo "Building for multiple platforms..."
+VERSION=${VERSION:-dev}
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u '+%Y-%m-%d_%H:%M:%S')
+LDFLAGS="-X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE"
+
+GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ${BINARY_NAME}-linux-amd64 .
+GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ${BINARY_NAME}-linux-arm64 .
+GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ${BINARY_NAME}-darwin-amd64 .
+GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ${BINARY_NAME}-darwin-arm64 .
+GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ${BINARY_NAME}-windows-amd64.exe .
+"""
+
+[tasks.install]
+description = "Install the binary"
+run = """
+echo "Installing $BINARY_NAME..."
+VERSION=${VERSION:-dev}
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u '+%Y-%m-%d_%H:%M:%S')
+go install -ldflags "-X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" .
+"""
+
+# Test tasks
+[tasks.test]
+description = "Run tests"
+run = """
+echo "Running tests..."
+go test -v -race -coverprofile=coverage.out ./...
+"""
+
+[tasks."test-coverage"]
+description = "Run tests with coverage report"
+depends = ["test"]
+run = """
+echo "Generating coverage report..."
+go tool cover -html=coverage.out -o coverage.html
+"""
+
+# Clean task
+[tasks.clean]
+description = "Remove build artifacts"
+run = """
+echo "Cleaning..."
+rm -f $BINARY_NAME
+rm -f ${BINARY_NAME}-*
+rm -f coverage.out coverage.html
+"""
+
+# Code quality tasks
+[tasks.fmt]
+description = "Format code"
+run = """
+echo "Formatting code..."
+go fmt ./...
+"""
+
+[tasks.vet]
+description = "Run go vet"
+run = """
+echo "Running go vet..."
+go vet ./...
+"""
+
+[tasks.lint]
+description = "Run linter"
+run = """
+echo "Running linter..."
+golangci-lint run
+"""
+
+# Dependency tasks
+[tasks.deps]
+description = "Download dependencies"
+run = """
+echo "Downloading dependencies..."
+go mod download
+go mod tidy
+"""
+
+# Run task
+[tasks.run]
+description = "Run the binary"
+run = "go run . $@"
+
+# Help task
+[tasks.help]
+description = "Show available tasks"
+run = """
+mise tasks
+"""

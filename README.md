@@ -19,7 +19,8 @@ A CLI tool for extracting specific files from OCI/Docker images without mounting
 ```bash
 git clone https://github.com/amartani/oci-extract
 cd oci-extract
-go build -o oci-extract .
+mise install  # Install Go and other development tools
+mise run build
 ```
 
 ### Using Go Install
@@ -162,8 +163,17 @@ oci-extract/
 
 ### Building
 
+This project uses [mise](https://mise.jdx.dev/) for development tool management and task running.
+
 ```bash
-go build -o oci-extract .
+# Install development tools (Go, golangci-lint)
+mise install
+
+# Build the binary
+mise run build
+
+# Build for all platforms
+mise run build-all
 ```
 
 ### Running Tests
@@ -171,10 +181,10 @@ go build -o oci-extract .
 **Unit Tests** (fast, no external dependencies):
 ```bash
 # Run all unit tests
-go test ./...
+mise run test
 
-# Run with coverage
-go test -v -race -coverprofile=coverage.out ./...
+# Run with coverage report
+mise run test-coverage
 ```
 
 **Integration Tests** (requires Docker, nerdctl, soci):
@@ -184,6 +194,22 @@ go test -v -tags=integration -timeout=30m ./tests/integration/...
 
 # See tests/integration/README.md for more details
 ```
+
+### Available Tasks
+
+Run `mise tasks` to see all available tasks:
+
+```bash
+mise tasks
+```
+
+Common tasks:
+- `mise run build` - Build the binary
+- `mise run test` - Run tests
+- `mise run lint` - Run linter
+- `mise run fmt` - Format code
+- `mise run clean` - Remove build artifacts
+- `mise run deps` - Download dependencies
 
 ### Adding New Format Support
 

@@ -1,0 +1,7 @@
+{
+	"image": "mcr.microsoft.com/devcontainers/base:trixie",
+	"features": {
+		"ghcr.io/devcontainers-extra/features/mise:1": {}
+	},
+	"postCreateCommand": ".claude/scripts/session_start.sh"
+}
