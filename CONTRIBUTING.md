@@ -9,7 +9,6 @@ Thank you for your interest in contributing to OCI-Extract!
 - [mise](https://mise.jdx.dev/) - Development tool management (recommended)
   - mise will automatically install Go, golangci-lint, and other required tools
 - Alternatively: Go 1.24+ and Git
-- (Optional) Docker for integration testing
 
 ### Getting Started
 
@@ -135,12 +134,20 @@ mise run test-coverage
 
 ### Integration Tests
 
-Integration tests require Docker and build test images with different formats:
+Integration tests use prebuilt images from GitHub Container Registry:
 
 ```bash
-# Run integration tests (installs nerdctl and soci automatically)
+# Run integration tests (uses prebuilt images)
 mise run integration-test
 ```
+
+**Note:** Tests use prebuilt images from `ghcr.io/amartani/oci-extract-test`. The CI automatically builds and pushes images in all formats (standard, eStargz, SOCI) on every commit.
+
+If you need to modify test images:
+- Edit files in `test-images/` directory
+- Update `tests/integration/cmd/build-images/main.go` if needed
+- Images are rebuilt automatically in CI
+- For local image builds (requires ghcr.io write access): `mise run integration-test-build-images`
 
 See `tests/integration/README.md` for more details on integration testing.
 
@@ -171,7 +178,8 @@ Common tasks:
 - `mise run install` - Install the binary with optimizations
 - `mise run test` - Run unit tests
 - `mise run test-coverage` - Run tests with coverage report
-- `mise run integration-test` - Run integration tests (requires Docker)
+- `mise run integration-test` - Run integration tests (uses prebuilt images)
+- `mise run integration-test-build-images` - Build and push test images (CI only)
 - `mise run lint` - Run golangci-lint
 - `mise run fmt` - Format code with gofmt
 - `mise run clean` - Remove build artifacts

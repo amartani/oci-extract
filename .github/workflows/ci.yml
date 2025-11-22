@@ -116,6 +116,14 @@ jobs:
           sudo mkdir -p /var/lib/soci-snapshotter-grpc
           sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
 
+      - name: Build and push test images
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          TEST_IMAGE_BASE: ${{ env.IMAGE_BASE }}
+          TEST_IMAGE_TAG: ${{ github.sha }}
+        run: mise run integration-test-build-images
+
       - name: Run integration tests
         env:
           REGISTRY: ${{ env.REGISTRY }}
