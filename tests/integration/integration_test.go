@@ -6,6 +6,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,22 +23,31 @@ const (
 )
 
 var (
-	registry  string
-	imageBase string
-	imageTag  string
+	registry   string
+	imageBase  string
+	imageTag   string
 	binaryPath string
+	binaryFlag = flag.String("binary", "", "Path to oci-extract binary (auto-detected if not specified)")
 )
 
 // TestMain sets up the test environment
 func TestMain(m *testing.M) {
+	// Parse flags
+	flag.Parse()
+
 	// Get configuration from environment
 	registry = getEnv("REGISTRY", defaultRegistry)
 	owner := getEnv("GITHUB_REPOSITORY_OWNER", defaultOwner)
 	imageBase = getEnv("TEST_IMAGE_BASE", fmt.Sprintf("%s/%s/oci-extract-test", registry, owner))
 	imageTag = getEnv("TEST_IMAGE_TAG", defaultImageTag)
 
-	// Find oci-extract binary
-	binaryPath = findBinary()
+	// Get oci-extract binary path (from flag or auto-detect)
+	if *binaryFlag != "" {
+		binaryPath = *binaryFlag
+	} else {
+		binaryPath = findBinary()
+	}
+
 	if binaryPath == "" {
 		fmt.Println("Error: oci-extract binary not found. Run 'mise run build' first.")
 		os.Exit(1)
