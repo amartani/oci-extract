@@ -112,6 +112,15 @@ func findBinary() string {
 	return ""
 }
 
+// runCommand prints and executes a command
+func runCommand(name string, args ...string) error {
+	fmt.Printf("$ %s %s\n", name, strings.Join(args, " "))
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // generateTestData creates test files needed for the test images
 func generateTestData() error {
 	fmt.Println("=== Generating Test Data ===")
@@ -199,11 +208,20 @@ func buildTestImages() error {
 func convertToEstargz() error {
 	fmt.Println("\n=== Converting to eStargz Format ===")
 
-	// Check if nerdctl is available
-	if _, err := exec.LookPath("nerdctl"); err != nil {
+	// Resolve full path to nerdctl
+	nerdctlPath, err := exec.LookPath("nerdctl")
+	if err != nil {
 		fmt.Println("⚠ nerdctl not found, skipping eStargz conversion")
 		return nil
 	}
+
+	// Get absolute path
+	nerdctlPath, err = filepath.Abs(nerdctlPath)
+	if err != nil {
+		nerdctlPath, _ = exec.LookPath("nerdctl") // fallback to original path
+	}
+
+	fmt.Printf("Using nerdctl: %s\n", nerdctlPath)
 
 	images := []struct {
 		source string
@@ -223,46 +241,31 @@ func convertToEstargz() error {
 		fmt.Printf("\nConverting %s to eStargz...\n", img.source)
 
 		// Pull the source image
-		cmd := exec.Command("sudo", "nerdctl", "pull", img.source)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand("sudo", nerdctlPath, "pull", img.source); err != nil {
 			return fmt.Errorf("failed to pull %s: %w", img.source, err)
 		}
 
 		// Convert to eStargz
-		cmd = exec.Command("sudo", "nerdctl", "image", "convert",
+		if err := runCommand("sudo", nerdctlPath, "image", "convert",
 			"--estargz",
 			"--oci",
 			img.source,
-			img.target)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+			img.target); err != nil {
 			return fmt.Errorf("failed to convert %s to eStargz: %w", img.source, err)
 		}
 
 		// Push the eStargz image
-		cmd = exec.Command("sudo", "nerdctl", "push", img.target)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand("sudo", nerdctlPath, "push", img.target); err != nil {
 			return fmt.Errorf("failed to push %s: %w", img.target, err)
 		}
 
 		// Also tag with image tag
 		targetWithTag := fmt.Sprintf("%s-%s", img.target, imageTag)
-		cmd = exec.Command("sudo", "nerdctl", "tag", img.target, targetWithTag)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand("sudo", nerdctlPath, "tag", img.target, targetWithTag); err != nil {
 			return fmt.Errorf("failed to tag %s: %w", img.target, err)
 		}
 
-		cmd = exec.Command("sudo", "nerdctl", "push", targetWithTag)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand("sudo", nerdctlPath, "push", targetWithTag); err != nil {
 			return fmt.Errorf("failed to push %s: %w", targetWithTag, err)
 		}
 
@@ -276,11 +279,20 @@ func convertToEstargz() error {
 func createSociIndices() error {
 	fmt.Println("\n=== Creating SOCI Indices ===")
 
-	// Check if soci is available
-	if _, err := exec.LookPath("soci"); err != nil {
+	// Resolve full path to soci
+	sociPath, err := exec.LookPath("soci")
+	if err != nil {
 		fmt.Println("⚠ soci not found, skipping SOCI index creation")
 		return nil
 	}
+
+	// Get absolute path
+	sociPath, err = filepath.Abs(sociPath)
+	if err != nil {
+		sociPath, _ = exec.LookPath("soci") // fallback to original path
+	}
+
+	fmt.Printf("Using soci: %s\n", sociPath)
 
 	images := []string{
 		fmt.Sprintf("%s:standard", imageBase),
@@ -291,18 +303,12 @@ func createSociIndices() error {
 		fmt.Printf("\nCreating SOCI index for %s...\n", img)
 
 		// Create SOCI index
-		cmd := exec.Command("sudo", "soci", "create", "--min-layer-size", "0", img)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand("sudo", sociPath, "create", "--min-layer-size", "0", img); err != nil {
 			return fmt.Errorf("failed to create SOCI index for %s: %w", img, err)
 		}
 
 		// Push SOCI index
-		cmd = exec.Command("sudo", "soci", "push", img)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := runCommand("sudo", sociPath, "push", img); err != nil {
 			return fmt.Errorf("failed to push SOCI index for %s: %w", img, err)
 		}
 
