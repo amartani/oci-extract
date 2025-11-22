@@ -151,95 +151,6 @@ Instead of mounting the image, oci-extract:
 - Falls back to streaming decompression (less efficient)
 - Still avoids pulling the entire image into local storage
 
-## Development
-
-### Project Structure
-
-```
-oci-extract/
-├── cmd/                    # CLI commands
-│   ├── root.go            # Root command
-│   ├── extract.go         # Extract command
-│   └── list.go            # List command
-├── internal/
-│   ├── remote/            # HTTP Range request handler
-│   │   └── reader.go
-│   ├── registry/          # Registry client
-│   │   └── client.go
-│   ├── estargz/           # eStargz support
-│   │   └── extractor.go
-│   ├── soci/              # SOCI support
-│   │   ├── discovery.go
-│   │   └── extractor.go
-│   ├── detector/          # Format detection
-│   │   └── format.go
-│   └── extractor/         # Orchestration logic
-│       └── orchestrator.go
-├── main.go
-└── go.mod
-```
-
-### Building
-
-This project uses [mise](https://mise.jdx.dev/) for development tool management and task running.
-
-```bash
-# Install development tools (Go, golangci-lint)
-mise install
-
-# Build the binary (for development)
-mise run build
-
-# Build with version stamping and optimizations (for release)
-mise run build-release
-```
-
-### Running Tests
-
-**Unit Tests** (fast, no external dependencies):
-```bash
-# Run all unit tests
-mise run test
-
-# Run with coverage report
-mise run test-coverage
-```
-
-**Integration Tests** (requires Docker):
-```bash
-# Run integration tests (builds images, converts formats, tests extraction)
-# This task installs nerdctl and soci automatically
-mise run integration-test
-
-# See tests/integration/README.md for more details
-```
-
-### Available Tasks
-
-Run `mise tasks` to see all available tasks:
-
-```bash
-mise tasks
-```
-
-Common tasks:
-- `mise run build` - Build the binary
-- `mise run build-release` - Build with version stamping and optimizations
-- `mise run test` - Run unit tests
-- `mise run integration-test` - Run integration tests (requires Docker)
-- `mise run lint` - Run linter
-- `mise run fmt` - Format code
-- `mise run clean` - Remove build artifacts
-- `mise run deps` - Download dependencies
-- `mise deadcode` - Check for unreachable functions
-
-### Adding New Format Support
-
-1. Create a new package under `internal/`
-2. Implement the extraction logic
-3. Add format detection in `internal/detector/`
-4. Wire it into the orchestrator
-
 ## Performance Comparison
 
 ### File Extraction
@@ -274,13 +185,7 @@ For listing all files in a typical image:
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development setup, workflow, and guidelines.
 
 ## License
 

@@ -6,9 +6,10 @@ Thank you for your interest in contributing to OCI-Extract!
 
 ### Prerequisites
 
-- Go 1.21 or later
-- Git
-- (Optional) Docker for testing with real images
+- [mise](https://mise.jdx.dev/) - Development tool management (recommended)
+  - mise will automatically install Go, golangci-lint, and other required tools
+- Alternatively: Go 1.24+ and Git
+- (Optional) Docker for integration testing
 
 ### Getting Started
 
@@ -19,32 +20,45 @@ Thank you for your interest in contributing to OCI-Extract!
    cd oci-extract
    ```
 
-3. Install dependencies:
+3. Install development tools using mise:
    ```bash
-   go mod download
+   mise install
    ```
 
-4. Build the project:
+4. Download dependencies:
    ```bash
-   make build
+   mise run deps
+   ```
+
+5. Build the project:
+   ```bash
+   mise run build
    ```
 
 ## Project Structure
 
 ```
 oci-extract/
-├── cmd/                    # CLI commands (Cobra)
-│   ├── root.go            # Root command and global flags
-│   └── extract.go         # Main extract command
+├── cmd/                    # CLI commands
+│   ├── root.go            # Root command
+│   ├── extract.go         # Extract command
+│   └── list.go            # List command
 ├── internal/
-│   ├── remote/            # HTTP Range request client
-│   ├── registry/          # OCI registry interactions
-│   ├── estargz/           # eStargz format support
-│   ├── soci/              # SOCI format support
-│   ├── detector/          # Format detection logic
-│   └── extractor/         # Main orchestration logic
-├── main.go                # Entry point
-└── go.mod                 # Go module definition
+│   ├── remote/            # HTTP Range request handler
+│   │   └── reader.go
+│   ├── registry/          # Registry client
+│   │   └── client.go
+│   ├── estargz/           # eStargz support
+│   │   └── extractor.go
+│   ├── soci/              # SOCI support
+│   │   ├── discovery.go
+│   │   └── extractor.go
+│   ├── detector/          # Format detection
+│   │   └── format.go
+│   └── extractor/         # Orchestration logic
+│       └── orchestrator.go
+├── main.go
+└── go.mod
 ```
 
 ## Development Workflow
@@ -57,19 +71,25 @@ oci-extract/
    ```
 
 2. Make your changes
+
 3. Format your code:
    ```bash
-   make fmt
+   mise run fmt
    ```
 
 4. Run tests:
    ```bash
-   make test
+   mise run test
    ```
 
-5. Check for issues:
+5. Run the linter:
    ```bash
-   make vet
+   mise run lint
+   ```
+
+6. Check for dead code:
+   ```bash
+   mise run deadcode
    ```
 
 ### Commit Guidelines
@@ -93,72 +113,79 @@ oci-extract/
 
 To add support for a new OCI layer format:
 
-1. Create a new package under `internal/`:
-   ```bash
-   mkdir internal/myformat
-   ```
-
-2. Implement the extraction logic:
-   ```go
-   package myformat
-
-   type Extractor struct {
-       reader io.ReaderAt
-   }
-
-   func (e *Extractor) ExtractFile(ctx context.Context, path, output string) error {
-       // Implementation
-   }
-   ```
-
-3. Add format detection in `internal/detector/format.go`:
-   ```go
-   const FormatMyFormat Format = ...
-
-   func detectMyFormat(layer v1.Layer) (bool, error) {
-       // Detection logic
-   }
-   ```
-
-4. Wire into orchestrator in `internal/extractor/orchestrator.go`:
-   ```go
-   case detector.FormatMyFormat:
-       return o.extractMyFormat(ctx, reader, opts)
-   ```
-
-5. Add tests in `internal/myformat/extractor_test.go`
+1. Create a new package under `internal/`
+2. Implement the extraction logic
+3. Add format detection in `internal/detector/`
+4. Wire it into the orchestrator in `internal/extractor/orchestrator.go`
+5. Add comprehensive tests
 
 ## Testing
 
 ### Unit Tests
 
+Run fast unit tests with no external dependencies:
+
 ```bash
-make test
+# Run all unit tests
+mise run test
+
+# Run with coverage report
+mise run test-coverage
 ```
 
 ### Integration Tests
 
-Integration tests require network access to registries:
+Integration tests require Docker and build test images with different formats:
 
 ```bash
-go test -tags=integration ./...
+# Run integration tests (installs nerdctl and soci automatically)
+mise run integration-test
 ```
+
+See `tests/integration/README.md` for more details on integration testing.
 
 ### Manual Testing
 
 Test with a real image:
 
 ```bash
+# Build and run
+mise run build
+./oci-extract extract alpine:latest /bin/sh -o ./sh -v
+
+# Or run directly with go
 go run . extract alpine:latest /bin/sh -o ./sh -v
 ```
+
+## Available Tasks
+
+Run `mise tasks` to see all available development tasks:
+
+```bash
+mise tasks
+```
+
+Common tasks:
+- `mise run build` - Build the binary for development
+- `mise run build-release` - Build with version stamping and optimizations
+- `mise run install` - Install the binary with optimizations
+- `mise run test` - Run unit tests
+- `mise run test-coverage` - Run tests with coverage report
+- `mise run integration-test` - Run integration tests (requires Docker)
+- `mise run lint` - Run golangci-lint
+- `mise run fmt` - Format code with gofmt
+- `mise run clean` - Remove build artifacts
+- `mise run deps` - Download and tidy dependencies
+- `mise run deadcode` - Check for unreachable functions
 
 ## Code Style
 
 - Follow standard Go conventions
-- Use `gofmt` for formatting (automatically applied by `make fmt`)
+- Use `mise run fmt` for formatting
 - Keep functions small and focused
-- Add comments for exported functions
+- Add comments for exported functions and types
 - Handle errors explicitly
+- Run `mise run lint` before committing to catch issues early
 
 ## Questions?
 
