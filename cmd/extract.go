@@ -6,10 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/amartani/oci-extract/internal/detector"
-	"github.com/amartani/oci-extract/internal/estargz"
-	"github.com/amartani/oci-extract/internal/registry"
-	"github.com/amartani/oci-extract/internal/remote"
-	"github.com/amartani/oci-extract/internal/standard"
+	"github.com/amartani/oci-extract/internal/extractor"
 	"github.com/spf13/cobra"
 )
 
@@ -64,117 +61,33 @@ func runExtract(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Output: %s\n", outputPath)
 	}
 
-	// Create registry client
-	client := registry.NewClient()
+	// Parse format hint
+	var formatHint detector.Format
+	switch format {
+	case "estargz":
+		formatHint = detector.FormatEStargz
+	case "soci":
+		formatHint = detector.FormatSOCI
+	case "standard":
+		formatHint = detector.FormatStandard
+	default:
+		formatHint = detector.FormatUnknown // Auto-detect
+	}
 
-	// Get enhanced layers with blob URLs
-	enhancedLayers, err := client.GetEnhancedLayers(ctx, imageRef)
+	// Create orchestrator
+	orch := extractor.NewOrchestrator(verbose)
+
+	// Extract the file
+	err := orch.Extract(ctx, extractor.ExtractOptions{
+		ImageRef:    imageRef,
+		FilePath:    filePath,
+		OutputPath:  outputPath,
+		ForceFormat: formatHint,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get image layers: %w", err)
+		return err
 	}
 
-	if verbose {
-		fmt.Printf("Found %d layers\n", len(enhancedLayers))
-	}
-
-	// Try to extract from each layer (bottom-up)
-	for i := len(enhancedLayers) - 1; i >= 0; i-- {
-		layerInfo := enhancedLayers[i]
-
-		if verbose {
-			fmt.Printf("Checking layer %s...\n", layerInfo.Digest)
-		}
-
-		// Detect format and extract
-		extracted, err := extractFromLayer(ctx, layerInfo, filePath, outputPath, format, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Printf("  Error: %v\n", err)
-			}
-			continue
-		}
-
-		if extracted {
-			fmt.Printf("Successfully extracted %s to %s\n", filePath, outputPath)
-			return nil
-		}
-	}
-
-	return fmt.Errorf("file %s not found in any layer of image %s", filePath, imageRef)
-}
-
-func extractFromLayer(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, filePath, outputPath, formatHint string, verbose bool) (bool, error) {
-	// Detect format if auto
-	formatToUse := formatHint
-	if formatHint == "auto" {
-		detectedFormat, err := detector.DetectFormat(ctx, layerInfo.Layer)
-		if err != nil {
-			if verbose {
-				fmt.Printf("  Format detection failed: %v, trying eStargz anyway\n", err)
-			}
-			detectedFormat = detector.FormatEStargz
-		}
-		formatToUse = detectedFormat.String()
-		if verbose {
-			fmt.Printf("  Detected format: %s\n", formatToUse)
-		}
-	}
-
-	// Try eStargz extraction
-	if formatToUse == "auto" || formatToUse == "estargz" {
-		if verbose {
-			fmt.Println("  Trying eStargz format...")
-		}
-
-		// Create RemoteReader for the layer
-		reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
-		if err != nil {
-			return false, fmt.Errorf("failed to create remote reader: %w", err)
-		}
-		defer func() { _ = reader.Close() }()
-
-		// Create eStargz extractor
-		extractor := estargz.NewExtractor(reader, layerInfo.Size)
-
-		// Try to extract the file
-		err = extractor.ExtractFile(ctx, filePath, outputPath)
-		if err == nil {
-			// Success!
-			return true, nil
-		}
-
-		if verbose {
-			fmt.Printf("  eStargz extraction failed: %v\n", err)
-		}
-
-		// If it's not a "file not found" error, return the error
-		// Otherwise, continue trying other formats
-	}
-
-	// Try standard layer extraction as fallback
-	if formatToUse == "auto" || formatToUse == "standard" {
-		if verbose {
-			fmt.Println("  Trying standard format...")
-		}
-
-		// Create standard extractor
-		// This downloads and decompresses the entire layer
-		extractor := standard.NewExtractor(layerInfo.Layer)
-
-		// Try to extract the file
-		err := extractor.ExtractFile(ctx, filePath, outputPath)
-		if err == nil {
-			// Success!
-			return true, nil
-		}
-
-		if verbose {
-			fmt.Printf("  Standard extraction failed: %v\n", err)
-		}
-
-		// Return the error if it's not a "file not found" error
-		// Otherwise, continue to next layer
-	}
-
-	return false, nil
+	fmt.Printf("Successfully extracted %s to %s\n", filePath, outputPath)
+	return nil
 }
