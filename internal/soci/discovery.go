@@ -188,7 +188,7 @@ func GetZtocForLayer(ctx context.Context, info *IndexInfo, layerDigest v1.Hash) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get uncompressed zTOC: %w", err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Read all the zTOC data
 	ztocData, err := io.ReadAll(rc)

@@ -52,8 +52,10 @@ run = 'go test -race -v ./...'
 
 [tasks."test-coverage"]
 description = "Run tests with coverage report"
-depends = ["test"]
-run = 'go tool cover -html=coverage.out -o coverage.html'
+run = '''
+go test -v -race -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out -o coverage.html
+'''
 
 [tasks."integration-test"]
 description = "Run integration tests (requires Docker)"
