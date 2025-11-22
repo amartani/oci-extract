@@ -15,55 +15,33 @@ fi
 mise trust 2>/dev/null || true
 mise install > /dev/null 2>&1
 
-# Append mise activation to CLAUDE_ENV_FILE if not already present
-if [ -n "$CLAUDE_ENV_FILE" ]; then
-    MISE_ACTIVATION='eval "$(mise activate bash)"'
-    if ! grep -qsF "$MISE_ACTIVATION" "$CLAUDE_ENV_FILE" 2>/dev/null; then
-        echo "Adding mise activation to $CLAUDE_ENV_FILE..."
-        echo "$MISE_ACTIVATION" >> "$CLAUDE_ENV_FILE"
-        echo "mise activation added to environment file."
-    else
-        echo "mise activation already present in $CLAUDE_ENV_FILE."
-    fi
+# Determine target environment file
+TARGET_ENV_FILE="${CLAUDE_ENV_FILE:-$HOME/.bashrc}"
 
-    # Set GOPROXY=direct to avoid connectivity issues
-    GOPROXY_EXPORT='export GOPROXY=direct'
-    if ! grep -qsF "$GOPROXY_EXPORT" "$CLAUDE_ENV_FILE" 2>/dev/null; then
-        echo "Adding GOPROXY=direct to $CLAUDE_ENV_FILE..."
-        echo "$GOPROXY_EXPORT" >> "$CLAUDE_ENV_FILE"
-        echo "GOPROXY configuration added to environment file."
-    else
-        echo "GOPROXY configuration already present in $CLAUDE_ENV_FILE."
-    fi
+MISE_ACTIVATION='eval "$(mise activate bash)"'
+GOPROXY_EXPORT='export GOPROXY=direct'
+
+# Ensure directory exists
+mkdir -p "$(dirname "$TARGET_ENV_FILE")"
+
+# Add mise activation if not already present
+if ! grep -qF "$MISE_ACTIVATION" "$TARGET_ENV_FILE" 2>/dev/null; then
+    echo "" >> "$TARGET_ENV_FILE"
+    echo "# mise activation" >> "$TARGET_ENV_FILE"
+    echo "$MISE_ACTIVATION" >> "$TARGET_ENV_FILE"
+    echo "mise activation added to $TARGET_ENV_FILE."
 else
-    # Ensure mise activation is present in ~/.bashrc
-    BASHRC="$HOME/.bashrc"
-    MISE_ACTIVATION='eval "$(mise activate bash)"'
-    GOPROXY_EXPORT='export GOPROXY=direct'
+    echo "mise activation already present in $TARGET_ENV_FILE."
+fi
 
-    if [ -f "$BASHRC" ]; then
-        if ! grep -qF "$MISE_ACTIVATION" "$BASHRC"; then
-            echo "Adding mise activation to $BASHRC..."
-            echo "" >> "$BASHRC"
-            echo "$MISE_ACTIVATION" >> "$BASHRC"
-            echo "mise activation added to $BASHRC."
-        else
-            echo "mise activation already present in $BASHRC."
-        fi
-
-        if ! grep -qF "$GOPROXY_EXPORT" "$BASHRC"; then
-            echo "Adding GOPROXY=direct to $BASHRC..."
-            echo "$GOPROXY_EXPORT" >> "$BASHRC"
-            echo "GOPROXY configuration added to $BASHRC."
-        else
-            echo "GOPROXY configuration already present in $BASHRC."
-        fi
-    else
-        echo "$BASHRC not found. Creating and adding mise activation..."
-        echo "$MISE_ACTIVATION" > "$BASHRC"
-        echo "$GOPROXY_EXPORT" >> "$BASHRC"
-        echo "mise activation and GOPROXY configuration added to new $BASHRC."
-    fi
+# Add GOPROXY=direct if not already present
+if ! grep -qF "$GOPROXY_EXPORT" "$TARGET_ENV_FILE" 2>/dev/null; then
+    echo "" >> "$TARGET_ENV_FILE"
+    echo "# Go proxy configuration for faster module downloads" >> "$TARGET_ENV_FILE"
+    echo "$GOPROXY_EXPORT" >> "$TARGET_ENV_FILE"
+    echo "GOPROXY configuration added to $TARGET_ENV_FILE."
+else
+    echo "GOPROXY configuration already present in $TARGET_ENV_FILE."
 fi
 
 # Immediately export variables for current session and child processes
