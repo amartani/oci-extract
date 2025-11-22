@@ -73,8 +73,8 @@ jobs:
           name: coverage-${{ matrix.goos }}-${{ matrix.goarch }}
           path: coverage.out
 
-  integration-tests:
-    name: Integration Tests
+  build-test-images:
+    name: Build Test Images
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -121,6 +121,44 @@ jobs:
           TEST_IMAGE_TAG: ${{ github.sha }}
         run: mise run integration-test-build-images
 
+  integration-tests:
+    name: Integration Tests ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: build-test-images
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - os: macos-13
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+          - os: windows-11-arm
+            goos: windows
+            goarch: arm64
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+
+      - name: Build oci-extract binary
+        run: mise run build
+
       - name: Run integration tests
         env:
           REGISTRY: ${{ env.REGISTRY }}
@@ -133,7 +171,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-results
+          name: integration-test-results-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             tests/integration/*.log
           if-no-files-found: ignore
