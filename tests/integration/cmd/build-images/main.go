@@ -84,7 +84,7 @@ func generateTestData() error {
 	fmt.Println("=== Generating Test Data ===")
 
 	// Generate large.bin (1MB)
-	largeBinPath := "../../test-images/base/testdata/large.bin"
+	largeBinPath := "test-images/base/testdata/large.bin"
 	if err := os.MkdirAll(filepath.Dir(largeBinPath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
@@ -110,7 +110,7 @@ func buildTestImages() error {
 	}{
 		{
 			name:    "base",
-			context: "../../test-images/base",
+			context: "test-images/base",
 			tags: []string{
 				fmt.Sprintf("%s:standard", imageBase),
 				fmt.Sprintf("%s:standard-%s", imageBase, imageTag),
@@ -118,7 +118,7 @@ func buildTestImages() error {
 		},
 		{
 			name:    "multilayer",
-			context: "../../test-images/multilayer",
+			context: "test-images/multilayer",
 			tags: []string{
 				fmt.Sprintf("%s:multilayer-standard", imageBase),
 				fmt.Sprintf("%s:multilayer-standard-%s", imageBase, imageTag),
