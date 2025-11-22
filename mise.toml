@@ -70,6 +70,10 @@ run = 'go test -v -tags=integration -timeout=30m ./tests/integration/...'
 description = "Build and push test images to registry (required for CI)"
 run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
+[tasks.benchmark]
+description = "Run extraction performance benchmarks"
+run = 'go run ./tests/benchmark'
+
 # Clean task
 [tasks.clean]
 description = "Remove build artifacts"

@@ -141,6 +141,40 @@ jobs:
             tests/integration/*.log
           if-no-files-found: ignore
 
+  benchmark:
+    name: Benchmark
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+
+      - name: Build oci-extract binary
+        run: mise run build-release
+
+      - name: Run benchmark
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          mise run benchmark -- --runs 1 --owner "$GITHUB_REPOSITORY_OWNER" --tag "${{ github.sha }}"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark-*.txt
+          if-no-files-found: ignore
+
   version:
     name: Generate Version
     needs: [build, lint, test, integration-tests]
