@@ -34,8 +34,29 @@ jobs:
         run: mise run lint
 
   test:
-    name: Test
-    runs-on: ubuntu-latest
+    name: Test ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - os: macos-13
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+          - os: windows-11-arm
+            goos: windows
+            goarch: arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,7 +70,7 @@ jobs:
       - name: Upload coverage to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: coverage
+          name: coverage-${{ matrix.goos }}-${{ matrix.goarch }}
           path: coverage.out
 
   integration-tests:
