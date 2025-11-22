@@ -70,6 +70,42 @@ sudo nerdctl image convert \
 sudo nerdctl push ghcr.io/YOUR_USERNAME/oci-extract-test:estargz
 ```
 
+### Converting to zstd
+
+Using nerdctl (requires sudo to access Docker's containerd):
+```bash
+# Pull the standard image first
+sudo nerdctl pull ghcr.io/YOUR_USERNAME/oci-extract-test:standard
+
+# Convert to zstd
+sudo nerdctl image convert \
+  --zstd \
+  --oci \
+  ghcr.io/YOUR_USERNAME/oci-extract-test:standard \
+  ghcr.io/YOUR_USERNAME/oci-extract-test:zstd
+
+# Push zstd image
+sudo nerdctl push ghcr.io/YOUR_USERNAME/oci-extract-test:zstd
+```
+
+### Converting to zstd:chunked
+
+Using nerdctl (requires sudo to access Docker's containerd):
+```bash
+# Pull the standard image first
+sudo nerdctl pull ghcr.io/YOUR_USERNAME/oci-extract-test:standard
+
+# Convert to zstd:chunked
+sudo nerdctl image convert \
+  --zstdchunked \
+  --oci \
+  ghcr.io/YOUR_USERNAME/oci-extract-test:standard \
+  ghcr.io/YOUR_USERNAME/oci-extract-test:zstd-chunked
+
+# Push zstd:chunked image
+sudo nerdctl push ghcr.io/YOUR_USERNAME/oci-extract-test:zstd-chunked
+```
+
 ### Creating SOCI Indices
 
 Using SOCI CLI (requires sudo to access containerd socket):
@@ -109,8 +145,10 @@ The integration tests (written in Go) automatically:
 2. Build standard Docker images using these Dockerfiles
 3. Convert to eStargz format (if nerdctl available)
 4. Create SOCI indices (if soci available)
-5. Push all variants to GHCR
-6. Run extraction tests against all formats
+5. Convert to zstd format (if nerdctl available)
+6. Convert to zstd:chunked format (if nerdctl available)
+7. Push all variants to GHCR
+8. Run extraction tests against all formats
 
 This approach keeps the image building logic in the test code, making it easier to maintain and modify.
 
@@ -120,9 +158,13 @@ Each test image is tagged with:
 - `standard` - Latest standard OCI image
 - `estargz` - Latest eStargz-converted image
 - `soci` - Latest SOCI-indexed image (same as standard, but with index)
+- `zstd` - Latest zstd-compressed image
+- `zstd-chunked` - Latest zstd:chunked-converted image
 - `multilayer-standard` - Multi-layer standard image
 - `multilayer-estargz` - Multi-layer eStargz image
 - `multilayer-soci` - Multi-layer SOCI-indexed image
+- `multilayer-zstd` - Multi-layer zstd-compressed image
+- `multilayer-zstd-chunked` - Multi-layer zstd:chunked image
 - `{format}-{git-sha}` - Specific commit version
 
 ## Maintenance
