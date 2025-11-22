@@ -89,9 +89,6 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v3
 
-      - name: Build oci-extract binary
-        run: mise run build-release
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -156,9 +153,6 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v3
-
-      - name: Build oci-extract binary
-        run: mise run build-release
 
       - name: Run benchmark
         env:

@@ -64,6 +64,7 @@ go tool cover -html=coverage.out -o coverage.html
 
 [tasks."integration-test"]
 description = "Run integration tests using prebuilt images from registry"
+depends = ["build-release"]
 run = 'go test -v -tags=integration -timeout=30m ./tests/integration/...'
 
 [tasks."integration-test-build-images"]
@@ -72,6 +73,7 @@ run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
 [tasks.benchmark]
 description = "Run extraction performance benchmarks"
+depends = ["build-release"]
 run = 'go run ./tests/benchmark'
 
 # Clean task
