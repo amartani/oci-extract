@@ -34,31 +34,6 @@ func NewExtractor(reader io.ReaderAt, size int64, ztocBlob []byte) (*Extractor, 
 	}, nil
 }
 
-// FileSpan represents the location of a file in the compressed stream
-type FileSpan struct {
-	StartOffset int64
-	EndOffset   int64
-	UncompressedSize int64
-}
-
-// FindFile locates a file in the zTOC and returns its span information
-func (e *Extractor) FindFile(targetPath string) (*FileSpan, error) {
-	// Search through the zTOC metadata to find the file
-	// The zTOC contains a list of files with their offset information
-	for _, entry := range e.ztoc.FileMetadata {
-		if entry.Name == targetPath {
-			// Note: This is simplified - actual FileMetadata structure may differ
-			return &FileSpan{
-				StartOffset:      0, // Would need to calculate from metadata
-				EndOffset:        0, // Would need to calculate from metadata
-				UncompressedSize: int64(entry.UncompressedSize),
-			}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("file %s not found in zTOC", targetPath)
-}
-
 // ExtractFile extracts a specific file using the zTOC information
 func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPath string) error {
 	// Convert ReaderAt to SectionReader for Ztoc.ExtractFile
