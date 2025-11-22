@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/scripts/session_start.sh"
+            "command": "source .claude/scripts/session_start.sh"
           }
         ]
       }

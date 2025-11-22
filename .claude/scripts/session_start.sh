@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
-
 echo "Running session start script..."
 
 # Check if mise is installed
