@@ -94,6 +94,20 @@ func main() {
 			file:     "/testdata/small.txt",
 			desc:     "Small file (SOCI format)",
 		},
+		{
+			method:   "oci-extract",
+			format:   "zstd",
+			imageTag: "zstd",
+			file:     "/testdata/small.txt",
+			desc:     "Small file (zstd format)",
+		},
+		{
+			method:   "oci-extract",
+			format:   "zstd:chunked",
+			imageTag: "zstd-chunked",
+			file:     "/testdata/small.txt",
+			desc:     "Small file (zstd:chunked format)",
+		},
 		// Large file tests
 		{
 			method:   "docker",
@@ -122,6 +136,20 @@ func main() {
 			imageTag: "standard",
 			file:     "/testdata/large.bin",
 			desc:     "Large file (SOCI format)",
+		},
+		{
+			method:   "oci-extract",
+			format:   "zstd",
+			imageTag: "zstd",
+			file:     "/testdata/large.bin",
+			desc:     "Large file (zstd format)",
+		},
+		{
+			method:   "oci-extract",
+			format:   "zstd:chunked",
+			imageTag: "zstd-chunked",
+			file:     "/testdata/large.bin",
+			desc:     "Large file (zstd:chunked format)",
 		},
 	}
 
@@ -414,8 +442,8 @@ func printSummary(results []benchmarkResult, runs int) {
 		}
 
 		// Collect times
-		var dockerTime, standardTime, estargzTime, sociTime time.Duration
-		dockerOk, standardOk, estargzOk, sociOk := false, false, false, false
+		var dockerTime, standardTime, estargzTime, sociTime, zstdTime, zstdChunkedTime time.Duration
+		dockerOk, standardOk, estargzOk, sociOk, zstdOk, zstdChunkedOk := false, false, false, false, false, false
 
 		for _, r := range group {
 			if r.err != nil {
@@ -433,6 +461,12 @@ func printSummary(results []benchmarkResult, runs int) {
 			} else if r.format == "soci" {
 				sociTime = r.duration
 				sociOk = true
+			} else if r.format == "zstd" {
+				zstdTime = r.duration
+				zstdOk = true
+			} else if r.format == "zstd:chunked" {
+				zstdChunkedTime = r.duration
+				zstdChunkedOk = true
 			}
 		}
 
@@ -465,6 +499,26 @@ func printSummary(results []benchmarkResult, runs int) {
 			}
 			if standardOk {
 				fmt.Printf(", %.2fx faster than standard", float64(standardTime)/float64(sociTime))
+			}
+			fmt.Println()
+		}
+		if zstdOk {
+			fmt.Printf("  oci-extract zstd:     %.3fs", zstdTime.Seconds())
+			if dockerOk {
+				fmt.Printf(" (%.2fx faster than docker)", float64(dockerTime)/float64(zstdTime))
+			}
+			if standardOk {
+				fmt.Printf(", %.2fx faster than standard", float64(standardTime)/float64(zstdTime))
+			}
+			fmt.Println()
+		}
+		if zstdChunkedOk {
+			fmt.Printf("  oci-extract zstd:chunked: %.3fs", zstdChunkedTime.Seconds())
+			if dockerOk {
+				fmt.Printf(" (%.2fx faster than docker)", float64(dockerTime)/float64(zstdChunkedTime))
+			}
+			if standardOk {
+				fmt.Printf(", %.2fx faster than standard", float64(standardTime)/float64(zstdChunkedTime))
 			}
 			fmt.Println()
 		}
