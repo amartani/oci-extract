@@ -82,6 +82,186 @@ func (o *Orchestrator) Extract(ctx context.Context, opts ExtractOptions) error {
 	return fmt.Errorf("file %s not found in any layer", opts.FilePath)
 }
 
+// ListOptions contains options for listing files
+type ListOptions struct {
+	ImageRef    string
+	ForceFormat detector.Format
+}
+
+// List lists all files in an OCI image
+func (o *Orchestrator) List(ctx context.Context, opts ListOptions) ([]string, error) {
+	// Get enhanced image layers with blob URLs
+	enhancedLayers, err := o.client.GetEnhancedLayers(ctx, opts.ImageRef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image layers: %w", err)
+	}
+
+	if o.verbose {
+		fmt.Printf("Found %d layers in image\n", len(enhancedLayers))
+	}
+
+	var allFiles []string
+
+	// List files from each layer (bottom-up, as layers are applied in order)
+	for i := len(enhancedLayers) - 1; i >= 0; i-- {
+		layerInfo := enhancedLayers[i]
+
+		if o.verbose {
+			fmt.Printf("Listing files in layer %s...\n", layerInfo.Digest)
+		}
+
+		// List files from this layer
+		files, err := o.listFromLayer(ctx, layerInfo, opts)
+		if err != nil {
+			if o.verbose {
+				fmt.Printf("  Failed to list files: %v\n", err)
+			}
+			continue
+		}
+
+		// Add files to the list (avoiding duplicates from upper layers)
+		fileSet := make(map[string]bool)
+		for _, f := range allFiles {
+			fileSet[f] = true
+		}
+		for _, f := range files {
+			if !fileSet[f] {
+				allFiles = append(allFiles, f)
+			}
+		}
+	}
+
+	return allFiles, nil
+}
+
+// listFromLayer lists files from a single layer
+func (o *Orchestrator) listFromLayer(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, opts ListOptions) ([]string, error) {
+	// Detect format if not forced
+	format := opts.ForceFormat
+	if format == detector.FormatUnknown {
+		var err error
+		format, err = detector.DetectFormat(ctx, layerInfo.Layer)
+		if err != nil {
+			if o.verbose {
+				fmt.Printf("  Format detection failed: %v, defaulting to standard\n", err)
+			}
+			format = detector.FormatStandard
+		}
+	}
+
+	if o.verbose {
+		fmt.Printf("  Detected format: %s\n", format)
+	}
+
+	// Try eStargz listing
+	if format == detector.FormatUnknown || format == detector.FormatEStargz {
+		if o.verbose {
+			fmt.Println("  Trying eStargz format...")
+		}
+
+		files, err := o.listEStargz(ctx, layerInfo)
+		if err == nil {
+			return files, nil
+		}
+
+		if o.verbose && err != nil {
+			fmt.Printf("  eStargz listing failed: %v\n", err)
+		}
+	}
+
+	// Try SOCI listing (requires index discovery first)
+	if format == detector.FormatUnknown || format == detector.FormatSOCI {
+		if o.verbose {
+			fmt.Println("  Trying SOCI format...")
+		}
+
+		sociIndex, err := soci.DiscoverSOCIIndex(ctx, opts.ImageRef)
+		if err == nil && sociIndex != nil {
+			files, err := o.listSOCI(ctx, layerInfo, sociIndex)
+			if err == nil {
+				return files, nil
+			}
+
+			if o.verbose && err != nil {
+				fmt.Printf("  SOCI listing failed: %v\n", err)
+			}
+		}
+	}
+
+	// Try standard listing as fallback
+	if o.verbose {
+		fmt.Println("  Using standard format...")
+	}
+
+	files, err := o.listStandard(ctx, layerInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+// listEStargz lists files from an eStargz layer
+func (o *Orchestrator) listEStargz(ctx context.Context, layerInfo *registry.EnhancedLayerInfo) ([]string, error) {
+	// Create RemoteReader for the layer using its blob URL
+	reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create remote reader: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	// Create eStargz extractor
+	extractor := estargz.NewExtractor(reader, layerInfo.Size)
+
+	// List files
+	files, err := extractor.ListFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+// listSOCI lists files from a SOCI-indexed layer
+func (o *Orchestrator) listSOCI(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, sociIndex *soci.IndexInfo) ([]string, error) {
+	// Get the zTOC for this specific layer
+	ztocBlob, err := soci.GetZtocForLayer(ctx, sociIndex, layerInfo.Digest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get zTOC for layer: %w", err)
+	}
+
+	// Create RemoteReader for the layer using its blob URL
+	reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create remote reader: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	// Create SOCI extractor
+	extractor, err := soci.NewExtractor(reader, layerInfo.Size, ztocBlob)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SOCI extractor: %w", err)
+	}
+
+	// List files
+	files := extractor.ListFiles()
+	return files, nil
+}
+
+// listStandard lists files from a standard OCI layer
+func (o *Orchestrator) listStandard(ctx context.Context, layerInfo *registry.EnhancedLayerInfo) ([]string, error) {
+	// Create standard extractor
+	extractor := standard.NewExtractor(layerInfo.Layer)
+
+	// List files
+	files, err := extractor.ListFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
 // extractFromLayer attempts to extract a file from a single layer
 func (o *Orchestrator) extractFromLayer(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, sociIndex *soci.IndexInfo, opts ExtractOptions) (bool, error) {
 	// Detect format if not forced
@@ -186,10 +366,10 @@ func (o *Orchestrator) extractSOCI(ctx context.Context, layerInfo *registry.Enha
 	defer func() { _ = reader.Close() }()
 
 	// Get the zTOC for this specific layer
-	// This would involve looking up the layer's digest in the SOCI index
-	// and fetching the corresponding zTOC blob
-	// For now, this is a placeholder
-	var ztocBlob []byte // Would be fetched from registry
+	ztocBlob, err := soci.GetZtocForLayer(ctx, sociIndex, layerInfo.Digest)
+	if err != nil {
+		return false, fmt.Errorf("failed to get zTOC for layer: %w", err)
+	}
 
 	// Create SOCI extractor
 	extractor, err := soci.NewExtractor(reader, layerInfo.Size, ztocBlob)

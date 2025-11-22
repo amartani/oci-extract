@@ -11,6 +11,7 @@ A CLI tool for extracting specific files from OCI/Docker images without mounting
   - eStargz (seekable tar.gz with Table of Contents)
   - SOCI (Seekable OCI with zTOC indices)
 - **Remote-First**: Works directly with remote registries without pulling entire images
+- **File Listing**: List all files in an image without downloading it
 
 ## Installation
 
@@ -72,6 +73,21 @@ docker login registry.example.com
 
 # Then extract
 oci-extract extract registry.example.com/myapp:v1.0 /app/binary -o ./binary
+```
+
+### List Files in an Image
+
+List all files in an image without downloading it:
+
+```bash
+# List all files
+oci-extract list alpine:latest
+
+# List with verbose output
+oci-extract list nginx:latest --verbose
+
+# Force a specific format
+oci-extract list myimage:latest --format estargz
 ```
 
 ## How It Works
@@ -143,7 +159,8 @@ Instead of mounting the image, oci-extract:
 oci-extract/
 ├── cmd/                    # CLI commands
 │   ├── root.go            # Root command
-│   └── extract.go         # Extract command
+│   ├── extract.go         # Extract command
+│   └── list.go            # List command
 ├── internal/
 │   ├── remote/            # HTTP Range request handler
 │   │   └── reader.go
@@ -214,6 +231,7 @@ Common tasks:
 - `mise run fmt` - Format code
 - `mise run clean` - Remove build artifacts
 - `mise run deps` - Download dependencies
+- `mise deadcode` - Check for unreachable functions
 
 ### Adding New Format Support
 
@@ -223,6 +241,8 @@ Common tasks:
 4. Wire it into the orchestrator
 
 ## Performance Comparison
+
+### File Extraction
 
 For extracting a 10KB file from a 500MB image:
 
@@ -234,6 +254,16 @@ For extracting a 10KB file from a 500MB image:
 | oci-extract (Standard) | ~20 MB* | ~15 sec |
 
 *Standard format requires downloading the entire layer containing the file
+
+### File Listing
+
+For listing all files in a typical image:
+
+| Format | Downloaded | Time |
+|--------|------------|------|
+| eStargz | ~50-100 KB (TOC) | ~2-3 sec |
+| SOCI | ~100-200 KB (zTOC + index) | ~3-4 sec |
+| Standard | Full layer size | ~10-30 sec |
 
 ## Limitations
 

@@ -3,6 +3,7 @@ package soci
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -119,13 +120,81 @@ func findViaTagReference(ctx context.Context, ref name.Reference, digest v1.Hash
 
 // GetSOCIIndex fetches and returns the SOCI index manifest
 func GetSOCIIndex(ctx context.Context, info *IndexInfo) (*v1.IndexManifest, error) {
-	_, err := remote.Image(info.Reference, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	// Fetch the SOCI index using the descriptor's digest
+	repo := info.Reference.Context()
+	digestRef, err := name.NewDigest(fmt.Sprintf("%s@%s", repo.String(), info.Descriptor.Digest.String()))
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch SOCI index image: %w", err)
+		return nil, fmt.Errorf("failed to construct digest reference: %w", err)
 	}
 
-	// The SOCI index is actually stored as an OCI index
-	// We need to parse it differently
-	// This is a placeholder for future implementation
-	return nil, fmt.Errorf("SOCI index parsing not yet implemented")
+	// Fetch the SOCI index as an OCI Image Index
+	idx, err := remote.Index(digestRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch SOCI index: %w", err)
+	}
+
+	// Get the index manifest
+	manifest, err := idx.IndexManifest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get index manifest: %w", err)
+	}
+
+	return manifest, nil
+}
+
+// GetZtocForLayer fetches the zTOC blob for a specific layer
+func GetZtocForLayer(ctx context.Context, info *IndexInfo, layerDigest v1.Hash) ([]byte, error) {
+	// Get the SOCI index manifest
+	indexManifest, err := GetSOCIIndex(ctx, info)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the zTOC descriptor for the layer
+	// SOCI index manifests contain descriptors for zTOC blobs
+	// Each zTOC is annotated with the layer digest it corresponds to
+	var ztocDescriptor *v1.Descriptor
+	for i, desc := range indexManifest.Manifests {
+		// Check annotations for layer digest reference
+		if desc.Annotations != nil {
+			if digest, ok := desc.Annotations["com.amazon.aws.soci.layer.digest"]; ok {
+				if digest == layerDigest.String() {
+					ztocDescriptor = &indexManifest.Manifests[i]
+					break
+				}
+			}
+		}
+	}
+
+	if ztocDescriptor == nil {
+		return nil, fmt.Errorf("no zTOC found for layer %s", layerDigest)
+	}
+
+	// Fetch the zTOC blob
+	repo := info.Reference.Context()
+	ztocRef, err := name.NewDigest(fmt.Sprintf("%s@%s", repo.String(), ztocDescriptor.Digest.String()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct zTOC reference: %w", err)
+	}
+
+	// Fetch the zTOC blob
+	layer, err := remote.Layer(ztocRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch zTOC blob: %w", err)
+	}
+
+	// Read the zTOC blob
+	rc, err := layer.Uncompressed()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get uncompressed zTOC: %w", err)
+	}
+	defer rc.Close()
+
+	// Read all the zTOC data
+	ztocData, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read zTOC data: %w", err)
+	}
+
+	return ztocData, nil
 }

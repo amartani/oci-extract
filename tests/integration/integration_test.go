@@ -706,3 +706,93 @@ func TestSOCIIndexDetection(t *testing.T) {
 		t.Errorf("Content mismatch:\nExpected: %q\nGot: %q", expected, string(content))
 	}
 }
+
+// TestListFiles tests the list command
+func TestListFiles(t *testing.T) {
+	formats := []string{"standard", "estargz"}
+
+	for _, format := range formats {
+		t.Run(format, func(t *testing.T) {
+			image := fmt.Sprintf("%s:%s", imageBase, format)
+
+			cmd := exec.Command(binaryPath, "list", image)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("List failed: %v\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
+			}
+
+			output := stdout.String()
+
+			// Check that expected files are in the output
+			expectedFiles := []string{
+				"testdata/small.txt",
+				"testdata/medium.json",
+				"testdata/large.bin",
+				"testdata/nested/deep/file.txt",
+			}
+
+			for _, expected := range expectedFiles {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, but it didn't.\nOutput: %s", expected, output)
+				}
+			}
+		})
+	}
+}
+
+// TestListFilesVerbose tests the list command with verbose output
+func TestListFilesVerbose(t *testing.T) {
+	image := fmt.Sprintf("%s:standard", imageBase)
+
+	cmd := exec.Command(binaryPath, "list", image, "--verbose")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("List failed: %v\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
+	}
+
+	output := stdout.String() + stderr.String()
+
+	// Check for verbose output indicators
+	expectedStrings := []string{"Listing", "layer", "Found"}
+	for _, expected := range expectedStrings {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected verbose output to contain %q, but it didn't.\nOutput: %s", expected, output)
+		}
+	}
+}
+
+// TestListMultiLayer tests listing files from multi-layer images
+func TestListMultiLayer(t *testing.T) {
+	image := fmt.Sprintf("%s:multilayer-standard", imageBase)
+
+	cmd := exec.Command(binaryPath, "list", image)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("List failed: %v\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
+	}
+
+	output := stdout.String()
+
+	// Check that files from all layers are listed
+	// Note: tar archives use relative paths (no leading slash)
+	expectedFiles := []string{
+		"layer1/file.txt",
+		"layer2/file.txt",
+		"final.txt",
+	}
+
+	for _, expected := range expectedFiles {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nOutput: %s", expected, output)
+		}
+	}
+}
