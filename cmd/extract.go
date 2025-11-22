@@ -44,7 +44,7 @@ func init() {
 	rootCmd.AddCommand(extractCmd)
 
 	extractCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output path (default: current directory + filename)")
-	extractCmd.Flags().StringVar(&format, "format", "auto", "Force format: auto, estargz, soci, standard")
+	extractCmd.Flags().StringVar(&format, "format", "auto", "Force format: auto, estargz, standard")
 }
 
 func runExtract(cmd *cobra.Command, args []string) error {

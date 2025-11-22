@@ -120,10 +120,23 @@ To add support for a new OCI layer format:
    }
    ```
 
-4. Wire into orchestrator in `internal/extractor/orchestrator.go`:
+4. Wire into the extraction logic in `cmd/extract.go`:
    ```go
-   case detector.FormatMyFormat:
-       return o.extractMyFormat(ctx, reader, opts)
+   // In extractFromLayer function, add a case for your format:
+   if formatToUse == "auto" || formatToUse == "myformat" {
+       reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
+       if err != nil {
+           return false, fmt.Errorf("failed to create remote reader: %w", err)
+       }
+       defer reader.Close()
+
+       extractor := myformat.NewExtractor(reader, layerInfo.Size)
+       err = extractor.ExtractFile(ctx, filePath, outputPath)
+       if err == nil {
+           return true, nil
+       }
+       // Handle error...
+   }
    ```
 
 5. Add tests in `internal/myformat/extractor_test.go`

@@ -20,9 +20,6 @@ const (
 
 	// FormatEStargz indicates an eStargz layer
 	FormatEStargz
-
-	// FormatSOCI indicates a SOCI-indexed layer
-	FormatSOCI
 )
 
 // String returns the string representation of the format
@@ -32,8 +29,6 @@ func (f Format) String() string {
 		return "standard"
 	case FormatEStargz:
 		return "estargz"
-	case FormatSOCI:
-		return "soci"
 	default:
 		return "unknown"
 	}
@@ -56,13 +51,9 @@ func DetectFormat(ctx context.Context, layer v1.Layer) (Format, error) {
 		return FormatEStargz, nil
 	}
 
-	// Check annotations for SOCI
-	// SOCI layers are typically standard layers but with associated indices
-	// We'd need to check if a SOCI index exists for this layer
-	// For now, we'll check media type hints
+	// Check media type - standard gzip compressed layers
 	if mt == "application/vnd.oci.image.layer.v1.tar+gzip" ||
 		mt == "application/vnd.docker.image.rootfs.diff.tar.gzip" {
-		// Could be either eStargz or standard
 		// Default to standard if no eStargz footer
 		return FormatStandard, nil
 	}
