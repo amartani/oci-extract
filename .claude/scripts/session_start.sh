@@ -68,4 +68,7 @@ else
     fi
 fi
 
+# Immediately export variables for current session and child processes
+export GOPROXY=direct
+
 echo "Session start script completed."
