@@ -1,0 +1,90 @@
+# mise configuration for oci-extract
+# https://mise.jdx.dev/
+
+[tools]
+go = "1.24.7"
+golangci-lint = "latest"
+"github:containerd/nerdctl" = "latest"
+"github:awslabs/soci-snapshotter" = "latest"
+
+[env]
+BINARY_NAME = "oci-extract"
+
+# Build tasks
+[tasks.build]
+description = "Build the binary"
+run = 'go build -o $BINARY_NAME .'
+
+[tasks."build-release"]
+description = "Build the binary with version stamping and optimizations"
+run = """
+VERSION=${VERSION:-dev}
+COMMIT=${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
+BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%d_%H:%M:%S')}
+
+# Construct binary name with version, OS, and arch if building for release
+if [ -n "$VERSION" ] && [ "$VERSION" != "dev" ] && [ -n "$GOOS" ] && [ -n "$GOARCH" ]; then
+  OUTPUT_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}"
+  if [ "$GOOS" = "windows" ]; then
+    OUTPUT_NAME="${OUTPUT_NAME}.exe"
+  fi
+else
+  OUTPUT_NAME="${BINARY_NAME:-oci-extract}"
+fi
+
+go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" -o "$OUTPUT_NAME" .
+"""
+
+[tasks.install]
+description = "Install the binary with optimizations"
+run = """
+VERSION=${VERSION:-dev}
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u '+%Y-%m-%d_%H:%M:%S')
+go install -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" .
+"""
+
+# Test tasks
+[tasks.test]
+description = "Run tests"
+run = 'go test -v -race -coverprofile=coverage.out ./...'
+
+[tasks."test-coverage"]
+description = "Run tests with coverage report"
+depends = ["test"]
+run = 'go tool cover -html=coverage.out -o coverage.html'
+
+[tasks."integration-test"]
+description = "Run integration tests (requires Docker)"
+run = 'go test -v -tags=integration -timeout=30m ./tests/integration/...'
+
+# Clean task
+[tasks.clean]
+description = "Remove build artifacts"
+run = '''
+rm -f $BINARY_NAME
+rm -f ${BINARY_NAME}-*
+rm -f coverage.out coverage.html
+'''
+
+# Code quality tasks
+[tasks.fmt]
+description = "Format code"
+run = 'go fmt ./...'
+
+[tasks.lint]
+description = "Run linter"
+run = 'golangci-lint run'
+
+# Dependency tasks
+[tasks.deps]
+description = "Download dependencies"
+run = '''
+go mod download
+go mod tidy
+'''
+
+# Run task
+[tasks.run]
+description = "Run the binary"
+run = "go run . $@"

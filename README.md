@@ -14,12 +14,14 @@ A CLI tool for extracting specific files from OCI/Docker images without mounting
 
 ## Installation
 
-### From Source
+### Download Binary
+
+Download the latest release for your platform from the [GitHub releases page](https://github.com/amartani/oci-extract/releases).
+
+### Using mise
 
 ```bash
-git clone https://github.com/amartani/oci-extract
-cd oci-extract
-go build -o oci-extract .
+mise use --global github:amartani/oci-extract
 ```
 
 ### Using Go Install
@@ -162,8 +164,17 @@ oci-extract/
 
 ### Building
 
+This project uses [mise](https://mise.jdx.dev/) for development tool management and task running.
+
 ```bash
-go build -o oci-extract .
+# Install development tools (Go, golangci-lint)
+mise install
+
+# Build the binary (for development)
+mise run build
+
+# Build with version stamping and optimizations (for release)
+mise run build-release
 ```
 
 ### Running Tests
@@ -171,19 +182,38 @@ go build -o oci-extract .
 **Unit Tests** (fast, no external dependencies):
 ```bash
 # Run all unit tests
-go test ./...
+mise run test
 
-# Run with coverage
-go test -v -race -coverprofile=coverage.out ./...
+# Run with coverage report
+mise run test-coverage
 ```
 
-**Integration Tests** (requires Docker, nerdctl, soci):
+**Integration Tests** (requires Docker):
 ```bash
 # Run integration tests (builds images, converts formats, tests extraction)
-go test -v -tags=integration -timeout=30m ./tests/integration/...
+# This task installs nerdctl and soci automatically
+mise run integration-test
 
 # See tests/integration/README.md for more details
 ```
+
+### Available Tasks
+
+Run `mise tasks` to see all available tasks:
+
+```bash
+mise tasks
+```
+
+Common tasks:
+- `mise run build` - Build the binary
+- `mise run build-release` - Build with version stamping and optimizations
+- `mise run test` - Run unit tests
+- `mise run integration-test` - Run integration tests (requires Docker)
+- `mise run lint` - Run linter
+- `mise run fmt` - Format code
+- `mise run clean` - Remove build artifacts
+- `mise run deps` - Download dependencies
 
 ### Adding New Format Support
 

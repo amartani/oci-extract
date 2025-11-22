@@ -79,16 +79,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.7'
-
-      - name: Download dependencies
-        run: go mod download
+      - name: Install mise
+        uses: jdx/mise-action@v3
 
       - name: Build oci-extract binary
-        run: make build
+        run: mise run build-release
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -100,40 +95,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Install nerdctl for eStargz conversion (uses Docker's containerd)
-      - name: Install nerdctl
-        run: |
-          NERDCTL_VERSION=1.7.6
-          curl -LO "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz"
-          sudo tar Cxzvf /usr/local/bin nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
-          sudo nerdctl --version
-
       - name: Log in to GHCR with nerdctl
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo nerdctl login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | nerdctl login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      # Install SOCI for creating indices
-      - name: Install SOCI
+      - name: Copy Docker credentials for sudo nerdctl
         run: |
-          SOCI_VERSION=0.11.1
-          curl -LO "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_VERSION}/soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz"
-          tar -xzf soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz
-          sudo install soci /usr/local/bin/
-          soci --version
+          sudo mkdir -p /root/.docker
+          sudo cp ~/.docker/config.json /root/.docker/config.json
 
-          # Create SOCI content store directory with proper permissions
+      - name: Create SOCI content store directory
+        run: |
           sudo mkdir -p /var/lib/soci-snapshotter-grpc
           sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
 
-      # Run integration tests (Go tests will build images and convert formats)
       - name: Run integration tests
         env:
           REGISTRY: ${{ env.REGISTRY }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           TEST_IMAGE_BASE: ${{ env.IMAGE_BASE }}
           TEST_IMAGE_TAG: ${{ github.sha }}
-        run: |
-          go test -v -tags=integration -timeout=30m ./tests/integration/...
+        run: mise run integration-test
 
       - name: Upload test results
         if: always()
@@ -213,10 +195,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.7'
+      - name: Install mise
+        uses: jdx/mise-action@v3
 
       - name: Build binary
         env:
@@ -225,15 +205,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
           COMMIT: ${{ github.sha }}
           BUILD_DATE: ${{ github.event.head_commit.timestamp }}
-        run: |
-          BINARY_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}"
-          if [ "$GOOS" = "windows" ]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
-          fi
-
-          go build \
-            -ldflags "-X github.com/amartani/oci-extract/cmd.version=${VERSION} -X github.com/amartani/oci-extract/cmd.commit=${COMMIT} -X github.com/amartani/oci-extract/cmd.date=${BUILD_DATE}" \
-            -o "${BINARY_NAME}" .
+        run: mise run build-release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
