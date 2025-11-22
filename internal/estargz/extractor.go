@@ -1,6 +1,8 @@
 package estargz
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -71,21 +73,41 @@ func (e *Extractor) ExtractFile(ctx context.Context, targetPath string, outputPa
 
 // ListFiles lists all files in an eStargz layer
 func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
+	// eStargz TOC doesn't expose a public API to iterate all entries
+	// (the children field is unexported). Since eStargz is backward-compatible
+	// with tar.gz, we fall back to reading it as a standard tar archive.
+	// This is less efficient than using the TOC but works correctly.
+
 	// Convert ReaderAt to SectionReader
 	sr := io.NewSectionReader(e.reader, 0, e.size)
 
-	// Open the eStargz reader
-	_, err := estargz.Open(sr)
+	// Create gzip reader
+	gzipReader, err := gzip.NewReader(sr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open estargz: %w", err)
+		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
+	defer func() { _ = gzipReader.Close() }()
+
+	// Create tar reader
+	tarReader := tar.NewReader(gzipReader)
 
 	var files []string
 
-	// The estargz reader provides a TOC (Table of Contents)
-	// We need to iterate through it to get all files
-	// This is a simplified version - the actual TOC iteration would depend
-	// on the estargz library's API
+	// Iterate through tar archive
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read tar entry: %w", err)
+		}
+
+		// Only include regular files
+		if header.Typeflag == tar.TypeReg {
+			files = append(files, header.Name)
+		}
+	}
 
 	return files, nil
 }
