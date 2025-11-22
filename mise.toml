@@ -15,6 +15,7 @@ BINARY_NAME = "oci-extract"
 [tasks.build]
 description = "Build the binary"
 run = 'go build -o $BINARY_NAME .'
+run_windows = 'go build -o $BINARY_NAME.exe .'
 
 [tasks."build-release"]
 description = "Build the binary with version stamping and optimizations"
@@ -26,11 +27,22 @@ BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%d_%H:%M:%S')}
 # Construct binary name with version, OS, and arch if building for release
 if [ -n "$VERSION" ] && [ "$VERSION" != "dev" ] && [ -n "$GOOS" ] && [ -n "$GOARCH" ]; then
   OUTPUT_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}"
-  if [ "$GOOS" = "windows" ]; then
-    OUTPUT_NAME="${OUTPUT_NAME}.exe"
-  fi
 else
   OUTPUT_NAME="${BINARY_NAME:-oci-extract}"
+fi
+
+go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" -o "$OUTPUT_NAME" .
+"""
+run_windows = """
+VERSION=${VERSION:-dev}
+COMMIT=${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
+BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%d_%H:%M:%S')}
+
+# Construct binary name with version, OS, and arch if building for release
+if [ -n "$VERSION" ] && [ "$VERSION" != "dev" ] && [ -n "$GOOS" ] && [ -n "$GOARCH" ]; then
+  OUTPUT_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}.exe"
+else
+  OUTPUT_NAME="${BINARY_NAME:-oci-extract}.exe"
 fi
 
 go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" -o "$OUTPUT_NAME" .
