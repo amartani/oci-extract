@@ -10,6 +10,7 @@ import (
 	"github.com/amartani/oci-extract/internal/remote"
 	"github.com/amartani/oci-extract/internal/soci"
 	"github.com/amartani/oci-extract/internal/standard"
+	"github.com/amartani/oci-extract/internal/zstd"
 )
 
 // Orchestrator manages the file extraction process
@@ -188,6 +189,38 @@ func (o *Orchestrator) listFromLayer(ctx context.Context, layerInfo *registry.En
 		}
 	}
 
+	// Try zstd:chunked listing
+	if format == detector.FormatUnknown || format == detector.FormatZstd || format == detector.FormatZstdChunked {
+		if o.verbose {
+			fmt.Println("  Trying zstd:chunked format...")
+		}
+
+		files, err := o.listZstdChunked(ctx, layerInfo)
+		if err == nil {
+			return files, nil
+		}
+
+		if o.verbose && err != nil {
+			fmt.Printf("  zstd:chunked listing failed: %v\n", err)
+		}
+	}
+
+	// Try zstd listing
+	if format == detector.FormatUnknown || format == detector.FormatZstd {
+		if o.verbose {
+			fmt.Println("  Trying zstd format...")
+		}
+
+		files, err := o.listZstd(ctx, layerInfo)
+		if err == nil {
+			return files, nil
+		}
+
+		if o.verbose && err != nil {
+			fmt.Printf("  zstd listing failed: %v\n", err)
+		}
+	}
+
 	// Try standard listing as fallback
 	if o.verbose {
 		fmt.Println("  Using standard format...")
@@ -262,6 +295,41 @@ func (o *Orchestrator) listStandard(ctx context.Context, layerInfo *registry.Enh
 	return files, nil
 }
 
+// listZstd lists files from a zstd-compressed OCI layer
+func (o *Orchestrator) listZstd(ctx context.Context, layerInfo *registry.EnhancedLayerInfo) ([]string, error) {
+	// Create zstd extractor
+	extractor := zstd.NewExtractor(layerInfo.Layer)
+
+	// List files
+	files, err := extractor.ListFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+// listZstdChunked lists files from a zstd:chunked layer
+func (o *Orchestrator) listZstdChunked(ctx context.Context, layerInfo *registry.EnhancedLayerInfo) ([]string, error) {
+	// Create RemoteReader for the layer using its blob URL
+	reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create remote reader: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	// Create zstd:chunked extractor
+	extractor := zstd.NewChunkedExtractor(reader, layerInfo.Size)
+
+	// List files
+	files, err := extractor.ListFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
 // extractFromLayer attempts to extract a file from a single layer
 func (o *Orchestrator) extractFromLayer(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, sociIndex *soci.IndexInfo, opts ExtractOptions) (bool, error) {
 	// Detect format if not forced
@@ -310,6 +378,38 @@ func (o *Orchestrator) extractFromLayer(ctx context.Context, layerInfo *registry
 
 		if o.verbose && err != nil {
 			fmt.Printf("  SOCI extraction failed: %v\n", err)
+		}
+	}
+
+	// Try zstd:chunked extraction
+	if format == detector.FormatUnknown || format == detector.FormatZstd || format == detector.FormatZstdChunked {
+		if o.verbose {
+			fmt.Println("  Trying zstd:chunked format...")
+		}
+
+		extracted, err := o.extractZstdChunked(ctx, layerInfo, opts)
+		if err == nil && extracted {
+			return true, nil
+		}
+
+		if o.verbose && err != nil {
+			fmt.Printf("  zstd:chunked extraction failed: %v\n", err)
+		}
+	}
+
+	// Try zstd extraction
+	if format == detector.FormatUnknown || format == detector.FormatZstd {
+		if o.verbose {
+			fmt.Println("  Trying zstd format...")
+		}
+
+		extracted, err := o.extractZstd(ctx, layerInfo, opts)
+		if err == nil && extracted {
+			return true, nil
+		}
+
+		if o.verbose && err != nil {
+			fmt.Printf("  zstd extraction failed: %v\n", err)
 		}
 	}
 
@@ -392,6 +492,41 @@ func (o *Orchestrator) extractStandard(ctx context.Context, layerInfo *registry.
 
 	// Try to extract the file
 	err := extractor.ExtractFile(ctx, opts.FilePath, opts.OutputPath)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// extractZstd extracts from a zstd-compressed OCI layer
+func (o *Orchestrator) extractZstd(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, opts ExtractOptions) (bool, error) {
+	// Create zstd extractor
+	extractor := zstd.NewExtractor(layerInfo.Layer)
+
+	// Try to extract the file
+	err := extractor.ExtractFile(ctx, opts.FilePath, opts.OutputPath)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// extractZstdChunked extracts from a zstd:chunked layer
+func (o *Orchestrator) extractZstdChunked(ctx context.Context, layerInfo *registry.EnhancedLayerInfo, opts ExtractOptions) (bool, error) {
+	// Create RemoteReader for the layer using its blob URL
+	reader, err := remote.NewRemoteReader(layerInfo.BlobURL)
+	if err != nil {
+		return false, fmt.Errorf("failed to create remote reader: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	// Create zstd:chunked extractor
+	extractor := zstd.NewChunkedExtractor(reader, layerInfo.Size)
+
+	// Try to extract the file
+	err = extractor.ExtractFile(ctx, opts.FilePath, opts.OutputPath)
 	if err != nil {
 		return false, err
 	}
