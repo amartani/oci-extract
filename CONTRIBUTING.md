@@ -52,6 +52,11 @@ oci-extract/
 │   ├── soci/              # SOCI support
 │   │   ├── discovery.go
 │   │   └── extractor.go
+│   ├── zstd/              # zstd and zstd:chunked support
+│   │   ├── extractor.go
+│   │   └── chunked_extractor.go
+│   ├── standard/          # Standard gzip layer support
+│   │   └── extractor.go
 │   ├── detector/          # Format detection
 │   │   └── format.go
 │   └── extractor/         # Orchestration logic
@@ -141,7 +146,7 @@ Integration tests use prebuilt images from GitHub Container Registry:
 mise run integration-test
 ```
 
-**Note:** Tests use prebuilt images from `ghcr.io/amartani/oci-extract-test`. The CI automatically builds and pushes images in all formats (standard, eStargz, SOCI) on every commit.
+**Note:** Tests use prebuilt images from `ghcr.io/amartani/oci-extract-test`. The CI automatically builds and pushes images in all formats (standard, eStargz, SOCI, zstd, zstd:chunked) on every commit.
 
 If you need to modify test images:
 - Edit files in `test-images/` directory

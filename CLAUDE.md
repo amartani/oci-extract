@@ -69,7 +69,9 @@ The tool processes image layers from **top to bottom** (respecting OCI overlay s
 
 1. **eStargz** (fastest): Read TOC → Range request specific chunks
 2. **SOCI** (fast): Read zTOC → Range request compressed ranges
-3. **Standard** (fallback): Stream entire layer (still avoids pulling to local storage)
+3. **zstd:chunked** (fast): Read TOC → Range request zstd-compressed chunks
+4. **zstd** (fallback): Stream entire zstd-compressed layer
+5. **Standard** (fallback): Stream entire gzip-compressed layer
 
 ### High-Level Flow
 
@@ -83,6 +85,8 @@ Orchestrator (extractor/orchestrator.go)
         ├─ Format Detection → Minimal detection, mostly try-and-fallback
         ├─ Try eStargz extraction
         ├─ Try SOCI extraction (if index exists)
+        ├─ Try zstd:chunked extraction
+        ├─ Try zstd extraction
         └─ Fallback to standard extraction
             ↓
 Remote Reader (remote/reader.go)
@@ -140,11 +144,13 @@ type EnhancedLayerInfo struct {
 ```
 
 #### 5. **Format Extractors**
-Three packages implement the same conceptual interface (not formally defined):
+Five packages implement the same conceptual interface (not formally defined):
 
-- `internal/estargz/extractor.go`: eStargz format (TOC-based)
+- `internal/estargz/extractor.go`: eStargz format (TOC-based, gzip)
 - `internal/soci/extractor.go`: SOCI format (zTOC-based)
-- `internal/standard/extractor.go`: Standard tar.gz layers
+- `internal/zstd/chunked_extractor.go`: zstd:chunked format (TOC-based, zstd)
+- `internal/zstd/extractor.go`: Standard tar+zstd layers
+- `internal/standard/extractor.go`: Standard tar+gzip layers
 
 Each provides:
 ```go
@@ -183,8 +189,14 @@ Supporting both maximizes registry compatibility.
       ├─ Try SOCI:
       │  └─ RemoteReader → Read zTOC → Range request compressed ranges
       │
+      ├─ Try zstd:chunked:
+      │  └─ RemoteReader → Try TOC → Range request zstd chunks (fallback to stream)
+      │
+      ├─ Try zstd:
+      │  └─ Stream layer → Decompress zstd → Iterate tar → Extract file
+      │
       └─ Fallback Standard:
-         └─ Stream layer → Decompress → Iterate tar → Extract file
+         └─ Stream layer → Decompress gzip → Iterate tar → Extract file
 ```
 
 ### Data Flow: List Command

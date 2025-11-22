@@ -22,6 +22,12 @@ const (
 
 	// FormatSOCI indicates a SOCI-indexed layer
 	FormatSOCI
+
+	// FormatZstd indicates a zstd-compressed layer
+	FormatZstd
+
+	// FormatZstdChunked indicates a zstd:chunked (seekable) layer
+	FormatZstdChunked
 )
 
 // String returns the string representation of the format
@@ -33,6 +39,10 @@ func (f Format) String() string {
 		return "estargz"
 	case FormatSOCI:
 		return "soci"
+	case FormatZstd:
+		return "zstd"
+	case FormatZstdChunked:
+		return "zstd:chunked"
 	default:
 		return "unknown"
 	}
@@ -47,6 +57,15 @@ func DetectFormat(ctx context.Context, layer v1.Layer) (Format, error) {
 	}
 
 	mt := string(mediaType)
+
+	// Check for zstd compression based on media type
+	if mt == "application/vnd.oci.image.layer.v1.tar+zstd" ||
+		mt == "application/vnd.docker.image.rootfs.diff.tar.zstd" {
+		// Could be either standard zstd or zstd:chunked
+		// Try to detect if it has a chunked footer (similar to eStargz)
+		// For now, return FormatZstd and let the orchestrator try chunked first
+		return FormatZstd, nil
+	}
 
 	// Check for eStargz footer
 	// eStargz layers have a magic footer at the end

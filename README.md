@@ -7,9 +7,11 @@ A CLI tool for extracting specific files from OCI/Docker images without mounting
 - **No Root Required**: Extract files without needing privileged access or container runtime
 - **Efficient**: Uses HTTP Range requests to fetch only necessary bytes
 - **Format Support**: Automatically detects and handles multiple image formats:
-  - Standard OCI/Docker layers
+  - Standard OCI/Docker layers (gzip)
   - eStargz (seekable tar.gz with Table of Contents)
   - SOCI (Seekable OCI with zTOC indices)
+  - zstd (zstandard compression)
+  - zstd:chunked (seekable zstd with TOC)
 - **Remote-First**: Works directly with remote registries without pulling entire images
 - **File Listing**: List all files in an image without downloading it
 
@@ -110,12 +112,16 @@ oci-extract list myimage:latest --format estargz
        │      │ Orchestrator│
        │      └──────┬──────┘
        │             │
-       │     ┌───────┼───────┐
-       │     │       │       │
-    ┌──▼─────▼─┐  ┌─▼────┐  ┌▼─────┐
-    │ eStargz  │  │ SOCI │  │ Std  │
-    │Extractor │  │ Extr.│  │ Extr.│
-    └──────────┘  └──────┘  └──────┘
+       │     ┌───────┼───────┬────────┐
+       │     │       │       │        │
+    ┌──▼─────▼─┐  ┌─▼────┐  ┌▼─────┐ │
+    │ eStargz  │  │ SOCI │  │ zstd │ │
+    │Extractor │  │ Extr.│  │ Extr.│ │
+    └──────────┘  └──────┘  └──────┘ │
+                                   ┌──▼─────┐
+                                   │  Std   │
+                                   │ Extr.  │
+                                   └────────┘
 ```
 
 ### The "No-Mount" Approach
@@ -137,7 +143,7 @@ Instead of mounting the image, oci-extract:
 - Reads the footer (last 47 bytes) to locate the TOC
 - Fetches the TOC to get file offsets
 - Downloads only the specific chunk containing the file
-- Decompresses on-the-fly
+- Decompresses on-the-fly with gzip
 
 #### SOCI
 
@@ -146,10 +152,25 @@ Instead of mounting the image, oci-extract:
 - Maps file paths to compressed byte ranges
 - Fetches and decompresses specific ranges
 
+#### zstd:chunked
+
+- Similar to eStargz but uses zstd compression
+- Reads TOC to locate file chunks
+- Downloads only necessary compressed chunks
+- Better compression ratio than gzip
+
+#### zstd
+
+- Standard tar archive with zstd compression
+- Requires streaming the entire layer (like standard gzip)
+- Better compression than gzip, smaller layer sizes
+- Falls back to full layer extraction
+
 #### Standard Layers
 
 - Falls back to streaming decompression (less efficient)
 - Still avoids pulling the entire image into local storage
+- Works with gzip-compressed tar archives
 
 ## Performance Comparison
 
@@ -161,10 +182,12 @@ For extracting a 10KB file from a 500MB image:
 |--------|------------|------|
 | docker pull + cp | 500 MB | ~2 min |
 | oci-extract (eStargz) | ~50 KB | ~2 sec |
+| oci-extract (zstd:chunked) | ~50 KB | ~2 sec |
 | oci-extract (SOCI) | ~100 KB | ~3 sec |
+| oci-extract (zstd) | ~15 MB* | ~12 sec |
 | oci-extract (Standard) | ~20 MB* | ~15 sec |
 
-*Standard format requires downloading the entire layer containing the file
+*Standard and zstd formats require downloading the entire layer containing the file
 
 ### File Listing
 
@@ -173,13 +196,16 @@ For listing all files in a typical image:
 | Format | Downloaded | Time |
 |--------|------------|------|
 | eStargz | ~50-100 KB (TOC) | ~2-3 sec |
+| zstd:chunked | ~50-100 KB (TOC) | ~2-3 sec |
 | SOCI | ~100-200 KB (zTOC + index) | ~3-4 sec |
+| zstd | Full layer size | ~8-25 sec |
 | Standard | Full layer size | ~10-30 sec |
 
 ## Limitations
 
-- Standard (non-seekable) layers require downloading entire layer containing the target file
+- Standard and zstd (non-seekable) formats require downloading entire layer containing the target file
 - SOCI support requires the image to have SOCI indices generated beforehand
+- zstd:chunked requires images to be converted with nerdctl or compatible tools
 - Some registries may not support HTTP Range requests (though most do)
 - Large files in highly compressed layers may still require significant downloads
 
@@ -197,6 +223,7 @@ Built on top of:
 - [google/go-containerregistry](https://github.com/google/go-containerregistry) - OCI registry client
 - [containerd/stargz-snapshotter](https://github.com/containerd/stargz-snapshotter) - eStargz support
 - [awslabs/soci-snapshotter](https://github.com/awslabs/soci-snapshotter) - SOCI support
+- [klauspost/compress](https://github.com/klauspost/compress) - zstd compression
 - [spf13/cobra](https://github.com/spf13/cobra) - CLI framework
 
 ## References

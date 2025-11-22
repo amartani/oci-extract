@@ -111,7 +111,7 @@ func extractFile(t *testing.T, image, filePath string) (string, error) {
 
 // TestExtractSmallFile tests extraction of small text files
 func TestExtractSmallFile(t *testing.T) {
-	formats := []string{"standard", "estargz", "soci"}
+	formats := []string{"standard", "estargz", "soci", "zstd", "zstd-chunked"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
@@ -137,7 +137,7 @@ func TestExtractSmallFile(t *testing.T) {
 
 // TestExtractNestedFile tests extraction of files in nested directories
 func TestExtractNestedFile(t *testing.T) {
-	formats := []string{"standard", "estargz", "soci"}
+	formats := []string{"standard", "estargz", "soci", "zstd", "zstd-chunked"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestExtractNestedFile(t *testing.T) {
 
 // TestExtractJSONFile tests extraction and validation of JSON files
 func TestExtractJSONFile(t *testing.T) {
-	formats := []string{"standard", "estargz", "soci"}
+	formats := []string{"standard", "estargz", "soci", "zstd", "zstd-chunked"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
@@ -203,7 +203,7 @@ func TestExtractLargeFile(t *testing.T) {
 		t.Skip("Skipping large file test in short mode")
 	}
 
-	formats := []string{"standard", "estargz", "soci"}
+	formats := []string{"standard", "estargz", "soci", "zstd", "zstd-chunked"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
@@ -238,7 +238,7 @@ func TestExtractLargeFile(t *testing.T) {
 
 // TestExtractMultiLayer tests extraction from multi-layer images
 func TestExtractMultiLayer(t *testing.T) {
-	formats := []string{"multilayer-standard", "multilayer-estargz", "multilayer-soci"}
+	formats := []string{"multilayer-standard", "multilayer-estargz", "multilayer-soci", "multilayer-zstd", "multilayer-zstd-chunked"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
@@ -478,7 +478,7 @@ func TestSOCIIndexDetection(t *testing.T) {
 
 // TestListFiles tests the list command
 func TestListFiles(t *testing.T) {
-	formats := []string{"standard", "estargz"}
+	formats := []string{"standard", "estargz", "zstd", "zstd-chunked"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
