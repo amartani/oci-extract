@@ -3,7 +3,6 @@ package detector
 import (
 	"context"
 	"fmt"
-	"io"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
@@ -97,28 +96,4 @@ func checkEStargzFooter(layer v1.Layer) (bool, error) {
 	// We'd need to read the last 47 bytes and check for the magic number
 	// This is a simplified check - real implementation would need proper seeking
 	return false, nil
-}
-
-// DetectFormatFromReader detects format from a ReaderAt
-func DetectFormatFromReader(reader io.ReaderAt, size int64) (Format, error) {
-	if size < 47 {
-		return FormatStandard, nil
-	}
-
-	// Read the last 47 bytes
-	footer := make([]byte, 47)
-	_, err := reader.ReadAt(footer, size-47)
-	if err != nil {
-		return FormatUnknown, fmt.Errorf("failed to read footer: %w", err)
-	}
-
-	// eStargz magic number is at the end
-	// The footer format is: [tocOffset:22][footerSize:10][magic:15]
-	// Magic is: "estargz.footer"
-	magic := string(footer[32:])
-	if magic == "estargz.footer\x00" {
-		return FormatEStargz, nil
-	}
-
-	return FormatStandard, nil
 }

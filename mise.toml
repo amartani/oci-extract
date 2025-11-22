@@ -6,6 +6,7 @@ go = "1.24.7"
 golangci-lint = "latest"
 "github:containerd/nerdctl" = "latest"
 "github:awslabs/soci-snapshotter" = "latest"
+"go:golang.org/x/tools/cmd/deadcode" = "latest"
 
 [env]
 BINARY_NAME = "oci-extract"
@@ -47,7 +48,7 @@ go install -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSI
 # Test tasks
 [tasks.test]
 description = "Run tests"
-run = 'go test -v -race -coverprofile=coverage.out ./...'
+run = 'go test -race -v ./...'
 
 [tasks."test-coverage"]
 description = "Run tests with coverage report"
@@ -84,7 +85,6 @@ go mod download
 go mod tidy
 '''
 
-# Run task
-[tasks.run]
-description = "Run the binary"
-run = "go run . $@"
+[tasks.deadcode]
+description = "Check for dead code"
+run = 'deadcode .'

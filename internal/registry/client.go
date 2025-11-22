@@ -45,21 +45,6 @@ func (c *Client) GetImage(ctx context.Context, imageRef string) (v1.Image, error
 	return img, nil
 }
 
-// GetManifest fetches the manifest for an image
-func (c *Client) GetManifest(ctx context.Context, imageRef string) (*v1.Manifest, error) {
-	img, err := c.GetImage(ctx, imageRef)
-	if err != nil {
-		return nil, err
-	}
-
-	manifest, err := img.Manifest()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %w", err)
-	}
-
-	return manifest, nil
-}
-
 // GetLayers returns all layers from an image
 func (c *Client) GetLayers(ctx context.Context, imageRef string) ([]v1.Layer, error) {
 	img, err := c.GetImage(ctx, imageRef)

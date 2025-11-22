@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 // Extractor handles file extraction from eStargz layers
@@ -23,29 +22,6 @@ func NewExtractor(reader io.ReaderAt, size int64) *Extractor {
 		reader: reader,
 		size:   size,
 	}
-}
-
-// IsEStargz checks if a layer is in eStargz format
-func IsEStargz(layer v1.Layer) (bool, error) {
-	// Get the layer's compressed reader
-	rc, err := layer.Compressed()
-	if err != nil {
-		return false, fmt.Errorf("failed to get compressed layer: %w", err)
-	}
-	defer func() { _ = rc.Close() }()
-
-	// Create a ReaderAt from the reader
-	// Note: This is a simplified check - in production you'd want to check
-	// the layer's media type or look for the eStargz footer
-	mediaType, err := layer.MediaType()
-	if err != nil {
-		return false, nil
-	}
-
-	// eStargz layers typically have these media types
-	mt := string(mediaType)
-	return mt == "application/vnd.oci.image.layer.v1.tar+gzip" ||
-		mt == "application/vnd.docker.image.rootfs.diff.tar.gzip", nil
 }
 
 // ExtractFile extracts a specific file from an eStargz layer
@@ -112,10 +88,4 @@ func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
 	// on the estargz library's API
 
 	return files, nil
-}
-
-// ExtractFileFromLayer is a convenience method that extracts from a layer directly
-func ExtractFileFromLayer(ctx context.Context, layer v1.Layer, reader io.ReaderAt, size int64, targetPath string, outputPath string) error {
-	extractor := NewExtractor(reader, size)
-	return extractor.ExtractFile(ctx, targetPath, outputPath)
 }
