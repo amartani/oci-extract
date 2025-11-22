@@ -65,23 +65,35 @@ func getEnv(key, defaultValue string) string {
 
 // findBinary locates the oci-extract binary
 func findBinary() string {
+	// Binary name with platform-specific extension
+	binaryNames := []string{"oci-extract"}
+	if filepath.Ext(os.Args[0]) == ".exe" {
+		// On Windows, also try with .exe extension
+		binaryNames = append(binaryNames, "oci-extract.exe")
+	}
+
 	// Try common locations
 	locations := []string{
-		"./oci-extract",
-		"../../oci-extract",
-		"../../../oci-extract",
+		".",
+		"../..",
+		"../../..",
 	}
 
 	for _, loc := range locations {
-		if _, err := os.Stat(loc); err == nil {
-			abs, _ := filepath.Abs(loc)
-			return abs
+		for _, name := range binaryNames {
+			path := filepath.Join(loc, name)
+			if _, err := os.Stat(path); err == nil {
+				abs, _ := filepath.Abs(path)
+				return abs
+			}
 		}
 	}
 
 	// Try in PATH
-	if path, err := exec.LookPath("oci-extract"); err == nil {
-		return path
+	for _, name := range binaryNames {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
 	}
 
 	return ""
