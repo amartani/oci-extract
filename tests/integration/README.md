@@ -5,7 +5,7 @@ Integration tests for OCI-Extract that validate extraction functionality against
 ## Overview
 
 These tests validate:
-- Format detection (Standard, eStargz, SOCI)
+- Format detection (Standard, eStargz, SOCI, zstd, zstd:chunked)
 - File extraction from all formats
 - Multi-layer image handling
 - Error cases (file not found, invalid images)
@@ -22,6 +22,8 @@ The integration tests use **prebuilt test images** hosted in GitHub Container Re
 - Builds Docker test images
 - Converts images to eStargz format (using nerdctl)
 - Creates SOCI indices (using soci CLI)
+- Converts images to zstd format (using nerdctl)
+- Converts images to zstd:chunked format (using nerdctl)
 - Pushes all variants to GitHub Container Registry
 - **Runs only in CI** (requires write permissions to ghcr.io)
 
@@ -129,6 +131,8 @@ tests/integration/
 - Correctly identifies Standard OCI layers
 - Correctly identifies eStargz layers (magic footer detection)
 - Correctly identifies SOCI-indexed layers (index discovery)
+- Correctly identifies zstd compressed layers
+- Correctly identifies zstd:chunked layers
 
 ### Extraction Tests
 
@@ -278,8 +282,12 @@ Based on architecture and real-world testing:
 | Standard | ~2s (full layer) | ~2-5s | 1x baseline |
 | eStargz | ~0.3s (~150KB) | ~1.1s (~1.2MB) | 3-4x |
 | SOCI | ~0.4s (~200KB) | ~1.2s (~1.3MB) | 2-3x |
+| zstd | ~2s (full layer) | ~2-5s | 1x (better compression) |
+| zstd:chunked | ~0.3s (~150KB) | ~1.1s (~1.2MB) | 3-4x |
 
 *Actual results depend on network speed, registry performance, and layer size.*
+*Note: zstd provides better compression than gzip but requires streaming full layer like standard format.*
+*zstd:chunked combines zstd compression with chunked access similar to eStargz.*
 
 ## References
 

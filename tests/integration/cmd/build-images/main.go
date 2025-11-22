@@ -59,6 +59,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Convert to zstd format
+	if err := convertToZstd(); err != nil {
+		fmt.Printf("Error converting to zstd: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Convert to zstd:chunked format
+	if err := convertToZstdChunked(); err != nil {
+		fmt.Printf("Error converting to zstd:chunked: %v\n", err)
+		os.Exit(1)
+	}
+
 	fmt.Println("\n✅ All test images built and pushed successfully!")
 }
 
@@ -271,6 +283,148 @@ func createSociIndices() error {
 		}
 
 		fmt.Printf("✓ Created and pushed SOCI index for %s\n", img)
+	}
+
+	return nil
+}
+
+// convertToZstd converts standard images to zstd format using nerdctl
+func convertToZstd() error {
+	fmt.Println("\n=== Converting to zstd Format ===")
+
+	// Resolve full path to nerdctl
+	nerdctlPath, err := exec.LookPath("nerdctl")
+	if err != nil {
+		fmt.Println("⚠ nerdctl not found, skipping zstd conversion")
+		return nil
+	}
+
+	// Get absolute path
+	nerdctlPath, err = filepath.Abs(nerdctlPath)
+	if err != nil {
+		nerdctlPath, _ = exec.LookPath("nerdctl") // fallback to original path
+	}
+
+	fmt.Printf("Using nerdctl: %s\n", nerdctlPath)
+
+	images := []struct {
+		source string
+		target string
+	}{
+		{
+			source: fmt.Sprintf("%s:standard", imageBase),
+			target: fmt.Sprintf("%s:zstd", imageBase),
+		},
+		{
+			source: fmt.Sprintf("%s:multilayer-standard", imageBase),
+			target: fmt.Sprintf("%s:multilayer-zstd", imageBase),
+		},
+	}
+
+	for _, img := range images {
+		fmt.Printf("\nConverting %s to zstd...\n", img.source)
+
+		// Pull the source image
+		if err := runCommand("sudo", nerdctlPath, "pull", img.source); err != nil {
+			return fmt.Errorf("failed to pull %s: %w", img.source, err)
+		}
+
+		// Convert to zstd
+		if err := runCommand("sudo", nerdctlPath, "image", "convert",
+			"--zstd",
+			"--oci",
+			img.source,
+			img.target); err != nil {
+			return fmt.Errorf("failed to convert %s to zstd: %w", img.source, err)
+		}
+
+		// Push the zstd image
+		if err := runCommand("sudo", nerdctlPath, "push", img.target); err != nil {
+			return fmt.Errorf("failed to push %s: %w", img.target, err)
+		}
+
+		// Also tag with image tag
+		targetWithTag := fmt.Sprintf("%s-%s", img.target, imageTag)
+		if err := runCommand("sudo", nerdctlPath, "tag", img.target, targetWithTag); err != nil {
+			return fmt.Errorf("failed to tag %s: %w", img.target, err)
+		}
+
+		if err := runCommand("sudo", nerdctlPath, "push", targetWithTag); err != nil {
+			return fmt.Errorf("failed to push %s: %w", targetWithTag, err)
+		}
+
+		fmt.Printf("✓ Converted and pushed %s\n", img.target)
+	}
+
+	return nil
+}
+
+// convertToZstdChunked converts standard images to zstd:chunked format using nerdctl
+func convertToZstdChunked() error {
+	fmt.Println("\n=== Converting to zstd:chunked Format ===")
+
+	// Resolve full path to nerdctl
+	nerdctlPath, err := exec.LookPath("nerdctl")
+	if err != nil {
+		fmt.Println("⚠ nerdctl not found, skipping zstd:chunked conversion")
+		return nil
+	}
+
+	// Get absolute path
+	nerdctlPath, err = filepath.Abs(nerdctlPath)
+	if err != nil {
+		nerdctlPath, _ = exec.LookPath("nerdctl") // fallback to original path
+	}
+
+	fmt.Printf("Using nerdctl: %s\n", nerdctlPath)
+
+	images := []struct {
+		source string
+		target string
+	}{
+		{
+			source: fmt.Sprintf("%s:standard", imageBase),
+			target: fmt.Sprintf("%s:zstd-chunked", imageBase),
+		},
+		{
+			source: fmt.Sprintf("%s:multilayer-standard", imageBase),
+			target: fmt.Sprintf("%s:multilayer-zstd-chunked", imageBase),
+		},
+	}
+
+	for _, img := range images {
+		fmt.Printf("\nConverting %s to zstd:chunked...\n", img.source)
+
+		// Pull the source image
+		if err := runCommand("sudo", nerdctlPath, "pull", img.source); err != nil {
+			return fmt.Errorf("failed to pull %s: %w", img.source, err)
+		}
+
+		// Convert to zstd:chunked
+		if err := runCommand("sudo", nerdctlPath, "image", "convert",
+			"--zstdchunked",
+			"--oci",
+			img.source,
+			img.target); err != nil {
+			return fmt.Errorf("failed to convert %s to zstd:chunked: %w", img.source, err)
+		}
+
+		// Push the zstd:chunked image
+		if err := runCommand("sudo", nerdctlPath, "push", img.target); err != nil {
+			return fmt.Errorf("failed to push %s: %w", img.target, err)
+		}
+
+		// Also tag with image tag
+		targetWithTag := fmt.Sprintf("%s-%s", img.target, imageTag)
+		if err := runCommand("sudo", nerdctlPath, "tag", img.target, targetWithTag); err != nil {
+			return fmt.Errorf("failed to tag %s: %w", img.target, err)
+		}
+
+		if err := runCommand("sudo", nerdctlPath, "push", targetWithTag); err != nil {
+			return fmt.Errorf("failed to push %s: %w", targetWithTag, err)
+		}
+
+		fmt.Printf("✓ Converted and pushed %s\n", img.target)
 	}
 
 	return nil
