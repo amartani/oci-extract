@@ -63,8 +63,12 @@ go tool cover -html=coverage.out -o coverage.html
 '''
 
 [tasks."integration-test"]
-description = "Run integration tests (requires Docker)"
+description = "Run integration tests using prebuilt images from registry"
 run = 'go test -v -tags=integration -timeout=30m ./tests/integration/...'
+
+[tasks."integration-test-build-images"]
+description = "Build and push test images to registry (required for CI)"
+run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
 # Clean task
 [tasks.clean]

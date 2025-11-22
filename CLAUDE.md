@@ -19,8 +19,11 @@ mise run test
 # Run unit tests with coverage
 mise run test-coverage
 
-# Run integration tests (requires Docker)
+# Run integration tests (uses prebuilt images from ghcr.io)
 mise run integration-test
+
+# Build and push test images (CI only - requires ghcr.io write access)
+mise run integration-test-build-images
 
 # Run linter
 mise run lint
@@ -232,8 +235,9 @@ When adding support for a new format:
 
 **Testing strategy:**
 - Unit tests: Mock layers, test extraction logic
-- Integration tests: Use real images (see `tests/integration/`)
-- Integration tests build images with different formats using nerdctl and soci tools
+- Integration tests: Use real prebuilt images from ghcr.io (see `tests/integration/`)
+- Image building: CI builds test images in all formats (standard, eStargz, SOCI) using nerdctl and soci
+- Local testing: No special tools required - tests use prebuilt images from the registry
 
 ## Important External Dependencies
 

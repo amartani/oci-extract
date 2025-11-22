@@ -13,15 +13,24 @@ These tests validate:
 
 ## Architecture
 
-The integration tests are written in Go and automatically:
-1. Generate test data (including large binary files)
-2. Build Docker test images
-3. Convert images to eStargz format (using nerdctl)
-4. Create SOCI indices (using soci CLI)
-5. Push all variants to GitHub Container Registry
-6. Run extraction tests against all formats
+The integration tests use **prebuilt test images** hosted in GitHub Container Registry. This design allows developers to run integration tests locally without requiring Docker, nerdctl, or soci tools.
 
-This approach keeps the test logic in Go and makes the tests easier to maintain.
+### Two-Part Design
+
+**1. Image Builder** (`cmd/build-images/main.go` - CI only):
+- Generates test data (including large binary files)
+- Builds Docker test images
+- Converts images to eStargz format (using nerdctl)
+- Creates SOCI indices (using soci CLI)
+- Pushes all variants to GitHub Container Registry
+- **Runs only in CI** (requires write permissions to ghcr.io)
+
+**2. Integration Tests** (`integration_test.go` - Local & CI):
+- Uses prebuilt images from the registry
+- Tests extraction against all formats
+- **Can run locally** without special tools or permissions
+
+This separation makes local development easier while ensuring CI validates the complete workflow.
 
 ## Running Tests
 
@@ -36,12 +45,12 @@ go test ./...
 go test -v -race -coverprofile=coverage.out ./...
 ```
 
-**Integration Tests** (slower, requires Docker and registry access):
+**Integration Tests** (use prebuilt images from registry):
 ```bash
-# Run integration tests
-go test -v -tags=integration ./tests/integration/...
+# Run integration tests (uses prebuilt images)
+mise run integration-test
 
-# Run with timeout for long-running tests
+# Or directly with go test
 go test -v -tags=integration -timeout=30m ./tests/integration/...
 
 # Run specific integration test
@@ -51,63 +60,53 @@ go test -v -tags=integration ./tests/integration/... -run TestExtractSmallFile
 go test -v -tags=integration -short ./tests/integration/...
 ```
 
+**Note:** Local runs use prebuilt images from `ghcr.io/amartani/oci-extract-test`. No Docker, nerdctl, or soci tools required!
+
 ### Prerequisites
 
-1. **Docker**: Required for building test images
+#### For Running Tests Locally
+
+1. **OCI-Extract Binary**: Build the binary first
    ```bash
-   docker --version
+   mise run build
    ```
 
-2. **OCI-Extract Binary**: Build the binary first
-   ```bash
-   cd ../..
-   make build
-   ```
+2. **That's it!** Tests use prebuilt images from the registry. No Docker, nerdctl, or soci tools needed.
 
-3. **Authentication**: Login to GHCR
-   ```bash
-   echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
-   ```
+#### For Building Test Images (CI Only)
 
-4. **Optional Tools** (for full format support):
-   - **nerdctl**: For eStargz conversion (tests will skip if not available)
-   - **soci**: For SOCI index creation (tests will skip if not available)
+Building test images requires:
+1. **Docker**: For building base images
+2. **nerdctl**: For eStargz conversion (installed by mise)
+3. **soci**: For SOCI index creation (installed by mise)
+4. **Registry Write Access**: Credentials to push to ghcr.io
 
-### Installing Optional Tools
+**Note:** Most developers don't need to build images. The CI automatically builds and pushes images on every commit. Use the prebuilt images for local testing.
 
-**nerdctl** (for eStargz):
+If you need to build images for development:
 ```bash
-NERDCTL_VERSION=1.7.6
-curl -LO "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz"
-sudo tar Cxzvf /usr/local/bin nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
-sudo nerdctl --version
+# Install tools (mise handles this automatically)
+mise install
 
-# Note: nerdctl will use Docker's containerd, no separate installation needed
-```
-
-**soci** (for SOCI indices):
-```bash
-SOCI_VERSION=0.11.1
-curl -LO "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_VERSION}/soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz"
-tar -xzf soci-snapshotter-${SOCI_VERSION}-linux-amd64.tar.gz
-sudo install soci /usr/local/bin/
-soci --version
-
-# Create content store directory
-sudo mkdir -p /var/lib/soci-snapshotter-grpc
-sudo chown -R $USER:$USER /var/lib/soci-snapshotter-grpc
+# Build and push images (requires ghcr.io write access)
+export GITHUB_TOKEN=your_token
+echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+mise run integration-test-build-images
 ```
 
 ## Test Structure
 
 ```
 tests/integration/
-├── README.md           # This file
-└── integration_test.go # All integration tests (Go)
+├── README.md              # This file
+├── integration_test.go    # Integration tests (uses prebuilt images)
+└── cmd/
+    └── build-images/
+        └── main.go        # Image builder (CI only)
 ```
 
-All integration tests are in `integration_test.go` which includes:
-- `TestMain`: Setup (generates test data, builds images, converts formats)
+**integration_test.go** includes:
+- `TestMain`: Setup (finds binary, configures registry)
 - `TestExtractSmallFile`: Tests extraction of small text files
 - `TestExtractNestedFile`: Tests nested directory paths
 - `TestExtractJSONFile`: Tests JSON extraction and validation
@@ -117,6 +116,12 @@ All integration tests are in `integration_test.go` which includes:
 - `TestExtractWithVerbose`: Tests verbose output
 - `TestPerformanceComparison`: Compares performance across formats
 - Benchmark tests for performance measurement
+
+**cmd/build-images/main.go** (CI only):
+- Generates test data
+- Builds and pushes Docker images
+- Converts to eStargz format
+- Creates SOCI indices
 
 ## Test Cases
 
@@ -186,10 +191,19 @@ Tests run automatically via GitHub Actions (`.github/workflows/ci.yml`):
 - On all pull requests
 - Integration tests must pass before releases are created
 
-The workflow:
-1. Installs Docker, nerdctl, and soci
-2. Runs Go integration tests which handle image building and conversion
-3. Gates version generation and releases on test success
+The CI workflow uses a two-step process:
+1. **Build Images** (`mise run integration-test-build-images`):
+   - Installs Docker, nerdctl, and soci
+   - Generates test data
+   - Builds test images in all formats
+   - Pushes to ghcr.io with commit SHA tag
+
+2. **Run Tests** (`mise run integration-test`):
+   - Uses images built in step 1
+   - Runs all integration tests
+   - Gates version generation and releases on test success
+
+This design ensures CI validates the complete workflow while allowing developers to run tests locally using prebuilt images.
 
 ## Adding New Tests
 
@@ -226,24 +240,34 @@ func TestExtractNewFile(t *testing.T) {
 ## Troubleshooting
 
 ### Tests Fail with "image not found"
-- Ensure test images are built and pushed to registry
-- Check authentication with `docker login ghcr.io`
+- **Local runs**: Prebuilt images should be available at `ghcr.io/amartani/oci-extract-test`
+- **CI runs**: Ensure the "Build and push test images" step completed successfully
+- Check registry connectivity: `docker pull ghcr.io/amartani/oci-extract-test:standard`
 - Verify image names match expected format
+
+### Tests Fail with "oci-extract binary not found"
+- Build the binary first: `mise run build`
+- The binary must be at the project root: `./oci-extract`
 
 ### Format Detection Fails
 - Check that eStargz images have proper magic footer
-- Verify SOCI indices were created and pushed
+- Verify SOCI indices were created and pushed (during image build)
 - Use `--verbose` flag for debugging
 
 ### Extraction Fails
-- Verify file exists in test image: `docker run IMAGE ls -la /testdata`
+- Verify file exists in test image: `./oci-extract list ghcr.io/amartani/oci-extract-test:standard`
 - Check registry connectivity
 - Review logs with `-v` flag
 
 ### Performance Tests Don't Show Speedup
-- Ensure eStargz/SOCI images are properly created
+- Ensure eStargz/SOCI images are properly created (this happens in CI)
 - Check network conditions (tests measure actual download)
 - Verify HTTP Range support on registry
+
+### Need to Rebuild Images
+- Only required if modifying test image structure or test data
+- Requires ghcr.io write permissions (maintainers only or CI)
+- Run: `mise run integration-test-build-images`
 
 ## Performance Expectations
 
