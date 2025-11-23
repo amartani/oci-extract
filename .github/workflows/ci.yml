@@ -143,9 +143,6 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v3
 
-      - name: Build oci-extract binary
-        run: mise run build
-
       - name: Run integration tests
         env:
           REGISTRY: ${{ env.REGISTRY }}
