@@ -196,7 +196,7 @@ jobs:
 
   version:
     name: Generate Version
-    needs: [build, lint, test, integration-tests]
+    needs: [lint, test, integration-tests]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
