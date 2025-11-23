@@ -3,10 +3,6 @@
 
 [tools]
 go = "1.24.7"
-golangci-lint = "latest"
-"github:containerd/nerdctl" = "latest"
-"github:awslabs/soci-snapshotter" = "latest"
-"go:golang.org/x/tools/cmd/deadcode" = "latest"
 
 [env]
 BINARY_NAME = "oci-extract"
@@ -83,6 +79,8 @@ run = 'go test -v -tags=integration -timeout=30m ./tests/integration/... -binary
 run_windows = 'go test -v -tags=integration -timeout=30m ./tests/integration/... -binary={{ config_root }}\oci-extract.exe'
 
 [tasks."integration-test-build-images"]
+tools."github:containerd/nerdctl" = "latest"
+tools."github:awslabs/soci-snapshotter" = "latest"
 description = "Build and push test images to registry (required for CI)"
 run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
@@ -107,6 +105,7 @@ run = 'go fmt ./...'
 
 [tasks.lint]
 description = "Run linter"
+tools.golangci-lint = "latest"
 run = 'golangci-lint run'
 
 # Dependency tasks
@@ -119,6 +118,7 @@ go mod tidy
 
 [tasks.deadcode]
 description = "Check for dead code"
+tools."go:golang.org/x/tools/cmd/deadcode" = "latest"
 run = '''
 output=$(deadcode .)
 if [ -n "$output" ]; then
