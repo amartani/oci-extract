@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/amartani/oci-extract/internal/pathutil"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
@@ -135,7 +136,8 @@ func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
 
 		// Only include regular files
 		if header.Typeflag == tar.TypeReg {
-			files = append(files, header.Name)
+			// Normalize path for consistent display (ensure leading slash)
+			files = append(files, pathutil.NormalizeForDisplay(header.Name))
 		}
 	}
 

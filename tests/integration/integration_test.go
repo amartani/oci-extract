@@ -519,10 +519,10 @@ func TestListFiles(t *testing.T) {
 
 			// Check that expected files are in the output
 			expectedFiles := []string{
-				"testdata/small.txt",
-				"testdata/medium.json",
-				"testdata/large.bin",
-				"testdata/nested/deep/file.txt",
+				"/testdata/small.txt",
+				"/testdata/medium.json",
+				"/testdata/large.bin",
+				"/testdata/nested/deep/file.txt",
 			}
 
 			for _, expected := range expectedFiles {
@@ -574,11 +574,11 @@ func TestListMultiLayer(t *testing.T) {
 	output := stdout.String()
 
 	// Check that files from all layers are listed
-	// Note: tar archives use relative paths (no leading slash)
+	// All paths should now have a leading slash for consistency
 	expectedFiles := []string{
-		"layer1/file.txt",
-		"layer2/file.txt",
-		"final.txt",
+		"/layer1/file.txt",
+		"/layer2/file.txt",
+		"/final.txt",
 	}
 
 	for _, expected := range expectedFiles {

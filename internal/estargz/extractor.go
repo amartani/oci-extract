@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/amartani/oci-extract/internal/pathutil"
 	"github.com/containerd/stargz-snapshotter/estargz"
 )
 
@@ -105,7 +106,8 @@ func (e *Extractor) ListFiles(ctx context.Context) ([]string, error) {
 
 		// Only include regular files
 		if header.Typeflag == tar.TypeReg {
-			files = append(files, header.Name)
+			// Normalize path for consistent display (ensure leading slash)
+			files = append(files, pathutil.NormalizeForDisplay(header.Name))
 		}
 	}
 
