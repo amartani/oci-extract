@@ -88,7 +88,7 @@ jobs:
 
       - name: Log in to GHCR with nerdctl
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | nerdctl login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | mise exec github:containerd/nerdctl -- nerdctl login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Copy Docker credentials for sudo nerdctl
         run: |
