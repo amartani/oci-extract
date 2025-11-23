@@ -1,11 +1,12 @@
 module github.com/amartani/oci-extract
 
-go 1.24.7
+go 1.25
 
 require (
 	github.com/awslabs/soci-snapshotter v0.11.1
 	github.com/containerd/stargz-snapshotter/estargz v0.18.1
 	github.com/google/go-containerregistry v0.20.6
+	github.com/klauspost/compress v1.18.1
 	github.com/spf13/cobra v1.10.1
 )
 
@@ -39,7 +40,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
