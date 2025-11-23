@@ -17,8 +17,8 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v3
 
-      - name: Run golangci-lint
-        run: mise run lint
+      - name: Run pre-commit linters
+        run: mise run pre-commit
 
   test:
     name: Test ${{ matrix.goos }}-${{ matrix.goarch }}
