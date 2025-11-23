@@ -19,6 +19,7 @@ run_windows = 'go build -o $BINARY_NAME.exe .'
 
 [tasks."build-release"]
 description = "Build the binary with version stamping and optimizations"
+shell = "sh -c -o errexit"
 run = """
 VERSION=${VERSION:-dev}
 COMMIT=${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
@@ -50,6 +51,7 @@ go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION
 
 [tasks.install]
 description = "Install the binary with optimizations"
+shell = "sh -c -o errexit"
 run = """
 VERSION=${VERSION:-dev}
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
