@@ -76,10 +76,15 @@ func TestListFiles(t *testing.T) {
 		t.Errorf("ListFiles() got %d files, want %d", len(files), len(testFiles))
 	}
 
-	// Create a set of expected files
+	// Create a set of expected files (with leading slash for normalized paths)
 	expectedFiles := make(map[string]bool)
 	for name := range testFiles {
-		expectedFiles[name] = true
+		// Paths are now normalized to include a leading slash
+		normalizedName := name
+		if normalizedName[0] != '/' {
+			normalizedName = "/" + normalizedName
+		}
+		expectedFiles[normalizedName] = true
 	}
 
 	// Check that all files are in the result

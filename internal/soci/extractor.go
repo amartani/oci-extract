@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/amartani/oci-extract/internal/pathutil"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 )
 
@@ -67,7 +68,8 @@ func (e *Extractor) ListFiles() []string {
 	for _, entry := range e.ztoc.FileMetadata {
 		// Only include regular files
 		if entry.Type == "reg" {
-			files = append(files, entry.Name)
+			// Normalize path for consistent display (ensure leading slash)
+			files = append(files, pathutil.NormalizeForDisplay(entry.Name))
 		}
 	}
 	return files
