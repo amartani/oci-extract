@@ -6,6 +6,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,22 +23,31 @@ const (
 )
 
 var (
-	registry  string
-	imageBase string
-	imageTag  string
+	registry   string
+	imageBase  string
+	imageTag   string
 	binaryPath string
+	binaryFlag = flag.String("binary", "", "Path to oci-extract binary (auto-detected if not specified)")
 )
 
 // TestMain sets up the test environment
 func TestMain(m *testing.M) {
+	// Parse flags
+	flag.Parse()
+
 	// Get configuration from environment
 	registry = getEnv("REGISTRY", defaultRegistry)
 	owner := getEnv("GITHUB_REPOSITORY_OWNER", defaultOwner)
 	imageBase = getEnv("TEST_IMAGE_BASE", fmt.Sprintf("%s/%s/oci-extract-test", registry, owner))
 	imageTag = getEnv("TEST_IMAGE_TAG", defaultImageTag)
 
-	// Find oci-extract binary
-	binaryPath = findBinary()
+	// Get oci-extract binary path (from flag or auto-detect)
+	if *binaryFlag != "" {
+		binaryPath = *binaryFlag
+	} else {
+		binaryPath = findBinary()
+	}
+
 	if binaryPath == "" {
 		fmt.Println("Error: oci-extract binary not found. Run 'mise run build' first.")
 		os.Exit(1)
@@ -65,23 +75,35 @@ func getEnv(key, defaultValue string) string {
 
 // findBinary locates the oci-extract binary
 func findBinary() string {
+	// Binary name with platform-specific extension
+	binaryNames := []string{"oci-extract"}
+	if filepath.Ext(os.Args[0]) == ".exe" {
+		// On Windows, also try with .exe extension
+		binaryNames = append(binaryNames, "oci-extract.exe")
+	}
+
 	// Try common locations
 	locations := []string{
-		"./oci-extract",
-		"../../oci-extract",
-		"../../../oci-extract",
+		".",
+		"../..",
+		"../../..",
 	}
 
 	for _, loc := range locations {
-		if _, err := os.Stat(loc); err == nil {
-			abs, _ := filepath.Abs(loc)
-			return abs
+		for _, name := range binaryNames {
+			path := filepath.Join(loc, name)
+			if _, err := os.Stat(path); err == nil {
+				abs, _ := filepath.Abs(path)
+				return abs
+			}
 		}
 	}
 
 	// Try in PATH
-	if path, err := exec.LookPath("oci-extract"); err == nil {
-		return path
+	for _, name := range binaryNames {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
 	}
 
 	return ""

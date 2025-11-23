@@ -23,9 +23,9 @@ func createTestLayer(t *testing.T, files map[string]string) v1.Layer {
 	// Write files to tar
 	for name, content := range files {
 		hdr := &tar.Header{
-			Name: name,
-			Mode: 0600,
-			Size: int64(len(content)),
+			Name:     name,
+			Mode:     0600,
+			Size:     int64(len(content)),
 			Typeflag: tar.TypeReg,
 		}
 		if err := tarWriter.WriteHeader(hdr); err != nil {
@@ -56,10 +56,10 @@ func createTestLayer(t *testing.T, files map[string]string) v1.Layer {
 
 func TestListFiles(t *testing.T) {
 	testFiles := map[string]string{
-		"file1.txt":             "content1",
-		"dir/file2.txt":         "content2",
-		"dir/subdir/file3.txt":  "content3",
-		"another/file4.txt":     "content4",
+		"file1.txt":            "content1",
+		"dir/file2.txt":        "content2",
+		"dir/subdir/file3.txt": "content3",
+		"another/file4.txt":    "content4",
 	}
 
 	layer := createTestLayer(t, testFiles)
@@ -116,7 +116,7 @@ func TestListFilesEmpty(t *testing.T) {
 func TestExtractFile(t *testing.T) {
 	testContent := "Hello, World!"
 	testFiles := map[string]string{
-		"test.txt": testContent,
+		"test.txt":       testContent,
 		"dir/nested.txt": "nested content",
 	}
 

@@ -2,11 +2,7 @@
 # https://mise.jdx.dev/
 
 [tools]
-go = "1.24.7"
-golangci-lint = "latest"
-"github:containerd/nerdctl" = "latest"
-"github:awslabs/soci-snapshotter" = "latest"
-"go:golang.org/x/tools/cmd/deadcode" = "latest"
+go = "1.25"
 
 [env]
 BINARY_NAME = "oci-extract"
@@ -15,9 +11,11 @@ BINARY_NAME = "oci-extract"
 [tasks.build]
 description = "Build the binary"
 run = 'go build -o $BINARY_NAME .'
+run_windows = 'go build -o $BINARY_NAME.exe .'
 
 [tasks."build-release"]
 description = "Build the binary with version stamping and optimizations"
+shell = "sh -c -o errexit"
 run = """
 VERSION=${VERSION:-dev}
 COMMIT=${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
@@ -26,11 +24,22 @@ BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%d_%H:%M:%S')}
 # Construct binary name with version, OS, and arch if building for release
 if [ -n "$VERSION" ] && [ "$VERSION" != "dev" ] && [ -n "$GOOS" ] && [ -n "$GOARCH" ]; then
   OUTPUT_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}"
-  if [ "$GOOS" = "windows" ]; then
-    OUTPUT_NAME="${OUTPUT_NAME}.exe"
-  fi
 else
   OUTPUT_NAME="${BINARY_NAME:-oci-extract}"
+fi
+
+go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" -o "$OUTPUT_NAME" .
+"""
+run_windows = """
+VERSION=${VERSION:-dev}
+COMMIT=${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
+BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%d_%H:%M:%S')}
+
+# Construct binary name with version, OS, and arch if building for release
+if [ -n "$VERSION" ] && [ "$VERSION" != "dev" ] && [ -n "$GOOS" ] && [ -n "$GOARCH" ]; then
+  OUTPUT_NAME="oci-extract-${VERSION}-${GOOS}-${GOARCH}.exe"
+else
+  OUTPUT_NAME="${BINARY_NAME:-oci-extract}.exe"
 fi
 
 go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION -X github.com/amartani/oci-extract/cmd.commit=$COMMIT -X github.com/amartani/oci-extract/cmd.date=$BUILD_DATE" -o "$OUTPUT_NAME" .
@@ -38,6 +47,7 @@ go build -ldflags "-s -w -X github.com/amartani/oci-extract/cmd.version=$VERSION
 
 [tasks.install]
 description = "Install the binary with optimizations"
+shell = "sh -c -o errexit"
 run = """
 VERSION=${VERSION:-dev}
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -65,9 +75,12 @@ go tool cover -html=coverage.out -o coverage.html
 [tasks."integration-test"]
 description = "Run integration tests using prebuilt images from registry"
 depends = ["build-release"]
-run = 'go test -v -tags=integration -timeout=30m ./tests/integration/...'
+run = 'go test -v -tags=integration -timeout=30m ./tests/integration/... -binary="{{ config_root }}/oci-extract"'
+run_windows = 'go test -v -tags=integration -timeout=30m ./tests/integration/... -binary={{ config_root }}\oci-extract.exe'
 
 [tasks."integration-test-build-images"]
+tools."github:containerd/nerdctl" = "latest"
+tools."github:awslabs/soci-snapshotter" = "latest"
 description = "Build and push test images to registry (required for CI)"
 run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
@@ -92,6 +105,7 @@ run = 'go fmt ./...'
 
 [tasks.lint]
 description = "Run linter"
+tools.golangci-lint = "latest"
 run = 'golangci-lint run'
 
 # Dependency tasks
@@ -104,4 +118,25 @@ go mod tidy
 
 [tasks.deadcode]
 description = "Check for dead code"
-run = 'deadcode .'
+tools."go:golang.org/x/tools/cmd/deadcode" = "latest"
+run = '''
+output=$(deadcode .)
+if [ -n "$output" ]; then
+  echo "Dead code detected:"
+  echo "$output"
+  exit 1
+fi
+'''
+
+[tasks.mise-fmt]
+description = "Format mise configuration"
+run = 'mise fmt'
+
+[tasks.shellcheck]
+description = "Run shellcheck on shell scripts"
+tools.shellcheck = "latest"
+run = 'find . -name "*.sh" -type f -exec shellcheck {} +'
+
+[tasks.pre-commit]
+description = "Run all pre-commit checks"
+depends = ["fmt", "lint", "deadcode", "mise-fmt", "shellcheck"]
