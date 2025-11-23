@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/klauspost/compress/zstd"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/klauspost/compress/zstd"
 )
 
 // Extractor handles file extraction from standard zstd-compressed OCI layers

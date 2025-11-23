@@ -127,3 +127,16 @@ if [ -n "$output" ]; then
   exit 1
 fi
 '''
+
+[tasks.mise-fmt]
+description = "Format mise configuration"
+run = 'mise fmt'
+
+[tasks.shellcheck]
+description = "Run shellcheck on shell scripts"
+tools.shellcheck = "latest"
+run = 'find . -name "*.sh" -type f -exec shellcheck {} +'
+
+[tasks.pre-commit]
+description = "Run all pre-commit checks"
+depends = ["fmt", "lint", "deadcode", "mise-fmt", "shellcheck"]

@@ -29,9 +29,9 @@ func NewOrchestrator(verbose bool) *Orchestrator {
 
 // ExtractOptions contains options for file extraction
 type ExtractOptions struct {
-	ImageRef   string
-	FilePath   string
-	OutputPath string
+	ImageRef    string
+	FilePath    string
+	OutputPath  string
 	ForceFormat detector.Format
 }
 

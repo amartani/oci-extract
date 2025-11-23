@@ -14,12 +14,12 @@ type RemoteReader struct {
 	size   int64
 
 	// Simple cache for small reads
-	cacheMu     sync.RWMutex
-	cacheStart  int64
-	cacheEnd    int64 // Tracks the end of valid cached data
-	cacheData   []byte
-	cacheSize   int
-	cacheValid  bool // Tracks if cache contains valid data
+	cacheMu    sync.RWMutex
+	cacheStart int64
+	cacheEnd   int64 // Tracks the end of valid cached data
+	cacheData  []byte
+	cacheSize  int
+	cacheValid bool // Tracks if cache contains valid data
 }
 
 // NewRemoteReader creates a new RemoteReader for the given URL
