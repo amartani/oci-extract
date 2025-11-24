@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mise
         uses: jdx/mise-action@v3
@@ -46,7 +46,7 @@ jobs:
             goarch: arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mise
         uses: jdx/mise-action@v3
@@ -71,7 +71,7 @@ jobs:
       IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mise
         uses: jdx/mise-action@v3
@@ -138,7 +138,7 @@ jobs:
       IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mise
         uses: jdx/mise-action@v3
@@ -171,7 +171,7 @@ jobs:
       IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mise
         uses: jdx/mise-action@v3
@@ -201,7 +201,7 @@ jobs:
       should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -264,7 +264,7 @@ jobs:
             goarch: arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mise
         uses: jdx/mise-action@v3
