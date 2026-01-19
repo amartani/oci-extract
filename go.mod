@@ -6,7 +6,7 @@ require (
 	github.com/awslabs/soci-snapshotter v0.12.1
 	github.com/containerd/stargz-snapshotter/estargz v0.18.1
 	github.com/google/go-containerregistry v0.20.7
-	github.com/klauspost/compress v1.18.2
+	github.com/klauspost/compress v1.18.3
 	github.com/spf13/cobra v1.10.2
 )
 
