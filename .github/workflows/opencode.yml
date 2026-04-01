@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
 
       - name: Install mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v4
 
       - name: Run opencode
         uses: anomalyco/opencode/github@latest
