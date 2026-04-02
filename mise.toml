@@ -2,7 +2,7 @@
 # https://mise.jdx.dev/
 
 [tools]
-go = "1.25"
+go = "latest"
 
 [env]
 BINARY_NAME = "oci-extract"
@@ -81,6 +81,9 @@ run_windows = 'go test -v -tags=integration -timeout=30m ./tests/integration/...
 [tasks."integration-test-build-images"]
 tools."github:containerd/nerdctl" = "latest"
 tools."github:awslabs/soci-snapshotter" = "latest"
+tools.golangci-lint = "latest"
+tools."go:golang.org/x/tools/cmd/deadcode" = "latest"
+tools.shellcheck = "latest"
 description = "Build and push test images to registry (required for CI)"
 run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
