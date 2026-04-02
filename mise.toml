@@ -3,6 +3,11 @@
 
 [tools]
 go = "latest"
+golangci-lint = "latest"
+shellcheck = "latest"
+"go:golang.org/x/tools/cmd/deadcode" = "latest"
+"github:containerd/nerdctl" = "latest"
+"github:awslabs/soci-snapshotter" = "latest"
 
 [env]
 BINARY_NAME = "oci-extract"
@@ -79,11 +84,6 @@ run = 'go test -v -tags=integration -timeout=30m ./tests/integration/... -binary
 run_windows = 'go test -v -tags=integration -timeout=30m ./tests/integration/... -binary={{ config_root }}\oci-extract.exe'
 
 [tasks."integration-test-build-images"]
-tools."github:containerd/nerdctl" = "latest"
-tools."github:awslabs/soci-snapshotter" = "latest"
-tools.golangci-lint = "latest"
-tools."go:golang.org/x/tools/cmd/deadcode" = "latest"
-tools.shellcheck = "latest"
 description = "Build and push test images to registry (required for CI)"
 run = 'go run -tags=integration ./tests/integration/cmd/build-images'
 
@@ -108,7 +108,6 @@ run = 'go fmt ./...'
 
 [tasks.lint]
 description = "Run linter"
-tools.golangci-lint = "latest"
 run = 'golangci-lint run'
 
 # Dependency tasks
@@ -121,7 +120,6 @@ go mod tidy
 
 [tasks.deadcode]
 description = "Check for dead code"
-tools."go:golang.org/x/tools/cmd/deadcode" = "latest"
 run = '''
 output=$(deadcode .)
 if [ -n "$output" ]; then
@@ -137,7 +135,6 @@ run = 'mise fmt'
 
 [tasks.shellcheck]
 description = "Run shellcheck on shell scripts"
-tools.shellcheck = "latest"
 run = 'find . -name "*.sh" -type f -exec shellcheck {} +'
 
 [tasks.pre-commit]
