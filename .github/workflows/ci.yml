@@ -16,6 +16,9 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v4
+        with:
+          env:
+            MISE_LOCKED: 1
 
       - name: Run pre-commit linters
         run: mise run pre-commit
@@ -50,6 +53,9 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v4
+        with:
+          env:
+            MISE_LOCKED: 1
 
       - name: Run tests
         run: mise run test-coverage
@@ -75,6 +81,9 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v4
+        with:
+          env:
+            MISE_LOCKED: 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -142,6 +151,9 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v4
+        with:
+          env:
+            MISE_LOCKED: 1
 
       - name: Run integration tests
         env:
@@ -175,6 +187,9 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v4
+        with:
+          env:
+            MISE_LOCKED: 1
 
       - name: Run benchmark
         env:
@@ -268,6 +283,9 @@ jobs:
 
       - name: Install mise
         uses: jdx/mise-action@v4
+        with:
+          env:
+            MISE_LOCKED: 1
 
       - name: Build binary
         env:
