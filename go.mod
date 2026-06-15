@@ -3,7 +3,7 @@ module github.com/amartani/oci-extract
 go 1.25.7
 
 require (
-	github.com/awslabs/soci-snapshotter v0.14.0
+	github.com/awslabs/soci-snapshotter v0.14.1
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2
 	github.com/google/go-containerregistry v0.21.6
 	github.com/klauspost/compress v1.18.6
@@ -63,7 +63,7 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
