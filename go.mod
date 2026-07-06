@@ -3,10 +3,10 @@ module github.com/amartani/oci-extract
 go 1.25.7
 
 require (
-	github.com/awslabs/soci-snapshotter v0.14.0
+	github.com/awslabs/soci-snapshotter v0.14.1
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2
-	github.com/google/go-containerregistry v0.21.6
-	github.com/klauspost/compress v1.18.6
+	github.com/google/go-containerregistry v0.21.7
+	github.com/klauspost/compress v1.19.0
 	github.com/spf13/cobra v1.10.2
 )
 
@@ -29,7 +29,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v29.5.2+incompatible // indirect
+	github.com/docker/cli v29.5.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -63,9 +63,9 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/genproto v0.0.0-20231211222908-989df2bf70f3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
