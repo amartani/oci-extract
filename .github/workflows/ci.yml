@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v4.2.3
         with:
           env:
             MISE_LOCKED: 1
@@ -49,10 +49,10 @@ jobs:
             goarch: arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v4.2.3
         with:
           env:
             MISE_LOCKED: 1
@@ -77,10 +77,10 @@ jobs:
       IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v4.2.3
         with:
           env:
             MISE_LOCKED: 1
@@ -147,10 +147,10 @@ jobs:
       IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v4.2.3
         with:
           env:
             MISE_LOCKED: 1
@@ -183,10 +183,10 @@ jobs:
       IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/oci-extract-test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v4.2.3
         with:
           env:
             MISE_LOCKED: 1
@@ -216,7 +216,7 @@ jobs:
       should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -279,10 +279,10 @@ jobs:
             goarch: arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v4
+        uses: jdx/mise-action@v4.2.3
         with:
           env:
             MISE_LOCKED: 1
