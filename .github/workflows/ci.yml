@@ -323,6 +323,8 @@ jobs:
           tag: ${{ needs.version.outputs.version }}
           commit: ${{ github.sha }}
           upload: false
+          resources: |
+            completion/bash,zsh,fish,powershell=exec:oci-extract completion {shell}
 
       - name: Upload Packslip bundle
         uses: actions/upload-artifact@v7
