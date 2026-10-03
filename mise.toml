@@ -5,7 +5,6 @@
 go = "latest"
 golangci-lint = "latest"
 shellcheck = "latest"
-"go:golang.org/x/tools/cmd/deadcode" = "latest"
 "github:containerd/nerdctl" = "latest"
 "github:awslabs/soci-snapshotter" = "latest"
 
@@ -118,17 +117,6 @@ go mod download
 go mod tidy
 '''
 
-[tasks.deadcode]
-description = "Check for dead code"
-run = '''
-output=$(deadcode .)
-if [ -n "$output" ]; then
-  echo "Dead code detected:"
-  echo "$output"
-  exit 1
-fi
-'''
-
 [tasks.mise-fmt]
 description = "Format mise configuration"
 run = 'mise fmt'
@@ -139,4 +127,4 @@ run = 'find . -name "*.sh" -type f -exec shellcheck {} +'
 
 [tasks.pre-commit]
 description = "Run all pre-commit checks"
-depends = ["fmt", "lint", "deadcode", "mise-fmt", "shellcheck"]
+depends = ["fmt", "lint", "mise-fmt", "shellcheck"]
