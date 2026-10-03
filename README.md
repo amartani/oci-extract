@@ -24,7 +24,7 @@ Download the latest release for your platform from the [GitHub releases page](ht
 ### Using mise
 
 ```bash
-mise use --global github:amartani/oci-extract
+mise use --global packslip:github.com/amartani/oci-extract
 ```
 
 ### Using Go Install
