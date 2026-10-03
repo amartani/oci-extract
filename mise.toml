@@ -14,6 +14,20 @@ shellcheck = "latest"
 [env]
 BINARY_NAME = "oci-extract"
 
+# Lock all platforms used by CI (windows-arm64 is not in mise's default set
+# but the test matrix includes windows-11-arm).
+[settings]
+lockfile_platforms = [
+  "linux-x64",
+  "linux-x64-musl",
+  "linux-arm64",
+  "linux-arm64-musl",
+  "macos-x64",
+  "macos-arm64",
+  "windows-x64",
+  "windows-arm64",
+]
+
 # Build tasks
 [tasks.build]
 description = "Build the binary"

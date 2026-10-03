@@ -64,6 +64,12 @@ url = "https://github.com/containerd/nerdctl/releases/download/v2.4.0/nerdctl-2.
 url_api = "https://api.github.com/repos/containerd/nerdctl/releases/assets/576124075"
 provenance = "github-attestations"
 
+[tools."github:containerd/nerdctl"."platforms.windows-arm64"]
+checksum = "sha256:2c908ddee750f10906c4481c205a524112d76e851cfa8fd2a41032874acd9e38"
+url = "https://github.com/containerd/nerdctl/releases/download/v2.4.0/nerdctl-2.4.0-go-mod-vendor.tar.gz"
+url_api = "https://api.github.com/repos/containerd/nerdctl/releases/assets/576124076"
+provenance = "github-attestations"
+
 [tools."github:containerd/nerdctl"."platforms.windows-x64"]
 checksum = "sha256:dc3532f593751fc5697b111acf6b279d839b701c6cda96d670e60c8af974f3ca"
 url = "https://github.com/containerd/nerdctl/releases/download/v2.4.0/nerdctl-2.4.0-windows-amd64.tar.gz"
@@ -97,6 +103,10 @@ url = "https://dl.google.com/go/go1.27.1.darwin-arm64.tar.gz"
 [tools.go."platforms.macos-x64"]
 checksum = "sha256:8f8f52c6649542cf027bbc9b9c68d1ec042f9f34808a40413f0b8b3f66f3caa4"
 url = "https://dl.google.com/go/go1.27.1.darwin-amd64.tar.gz"
+
+[tools.go."platforms.windows-arm64"]
+checksum = "sha256:13b69b87bb0e83f96bc68560a8cace7f0343b1e03469f1110ea18d17e3234069"
+url = "https://dl.google.com/go/go1.27.1.windows-arm64.zip"
 
 [tools.go."platforms.windows-x64"]
 checksum = "sha256:a3911b5e0e1b1053f25ed0675f4c1c6aad1e2bfcf253df2b9be4caabd2edd95d"
@@ -142,6 +152,12 @@ url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golan
 url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813755"
 provenance = "github-attestations"
 
+[tools.golangci-lint."platforms.windows-arm64"]
+checksum = "sha256:6399496aef883e5d2f77ea93e6e54fdd05bc2695f64071d8de0b0579cad92274"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-arm64.zip"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813645"
+provenance = "github-attestations"
+
 [tools.golangci-lint."platforms.windows-x64"]
 checksum = "sha256:b15f903d1649283a2ab6e8d2f0c317eaf1f9f6b3763950e7e8b7e72a43dd724f"
 url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-amd64.zip"
@@ -181,6 +197,11 @@ url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/2790
 checksum = "sha256:3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6"
 url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.xz"
 url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056930"
+
+[tools.shellcheck."platforms.windows-arm64"]
+checksum = "sha256:8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip"
+url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056944"
 
 [tools.shellcheck."platforms.windows-x64"]
 checksum = "sha256:8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e"
