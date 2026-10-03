@@ -5,8 +5,11 @@
 go = "latest"
 golangci-lint = "latest"
 shellcheck = "latest"
-"github:containerd/nerdctl" = "latest"
-"github:awslabs/soci-snapshotter" = "latest"
+# Linux-only: nerdctl/soci are only used to build test images (ubuntu-latest CI job).
+# Neither ships usable macOS/Windows binaries, so installing them on those
+# platforms fails `mise install --locked` in CI.
+"github:containerd/nerdctl" = { version = "latest", os = ["linux"] }
+"github:awslabs/soci-snapshotter" = { version = "latest", os = ["linux"] }
 
 [env]
 BINARY_NAME = "oci-extract"
