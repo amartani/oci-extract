@@ -31,9 +31,6 @@ mise run lint
 # Format code
 mise run fmt
 
-# Check for dead code
-mise run deadcode
-
 # Clean build artifacts
 mise run clean
 

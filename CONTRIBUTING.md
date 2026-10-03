@@ -91,11 +91,6 @@ oci-extract/
    mise run lint
    ```
 
-6. Check for dead code:
-   ```bash
-   mise run deadcode
-   ```
-
 ### Commit Guidelines
 
 - Use clear, descriptive commit messages
@@ -189,7 +184,6 @@ Common tasks:
 - `mise run fmt` - Format code with gofmt
 - `mise run clean` - Remove build artifacts
 - `mise run deps` - Download and tidy dependencies
-- `mise run deadcode` - Check for unreachable functions
 
 ## Code Style
 

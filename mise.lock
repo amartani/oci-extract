@@ -102,10 +102,6 @@ url = "https://dl.google.com/go/go1.25.8.darwin-amd64.tar.gz"
 checksum = "sha256:8d4ed9a270b33df7a6d3ff3a5316e103e0042fcc4f0c9a80e40378700bab6794"
 url = "https://dl.google.com/go/go1.25.8.windows-amd64.zip"
 
-[[tools."go:golang.org/x/tools/cmd/deadcode"]]
-version = "latest"
-backend = "go:golang.org/x/tools/cmd/deadcode"
-
 [[tools.golangci-lint]]
 version = "2.11.4"
 backend = "aqua:golangci/golangci-lint"
