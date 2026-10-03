@@ -303,9 +303,43 @@ jobs:
           path: oci-extract-*
           if-no-files-found: error
 
+  packslip:
+    name: Sign release artifacts
+    needs: [version, release-build]
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download release binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create and sign Packslip bundle
+        id: packslip
+        uses: jdx/packslip@v1
+        with:
+          artifacts: artifacts/oci-extract-*
+          bin: oci-extract
+          version: ${{ needs.version.outputs.version }}
+          tag: ${{ needs.version.outputs.version }}
+          commit: ${{ github.sha }}
+          upload: false
+
+      - name: Upload Packslip bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: packslip-bundle
+          path: ${{ steps.packslip.outputs.bundle }}
+          if-no-files-found: error
+
   release:
     name: Create Release
-    needs: [version, release-build]
+    needs: [version, release-build, packslip]
     if: needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -352,5 +386,6 @@ jobs:
           files: |
             artifacts/oci-extract-*
             artifacts/checksums.txt
+            artifacts/packslip.sigstore.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
